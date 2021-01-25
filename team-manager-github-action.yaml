@@ -1,0 +1,20 @@
+name: Team management
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    # if: github.repository == '<my-org>/<my-repo>'
+    name: Team sync
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v1
+      - uses: docker://quay.io/cilium/team-manager:v0.0.1
+        name: Sync team
+        with:
+          entrypoint: team-manager
+          args: --force --config-filename ./team-assignments.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.ADMIN_ORG_TOKEN }}
