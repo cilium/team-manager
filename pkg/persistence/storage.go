@@ -19,16 +19,16 @@ import (
 
 	"github.com/cilium/team-manager/pkg/config"
 
+	"github.com/google/renameio"
 	"gopkg.in/yaml.v2"
 )
 
 func StoreState(file string, newConfig *config.Config) error {
-	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0664)
+	data, err := yaml.Marshal(newConfig)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return yaml.NewEncoder(f).Encode(newConfig)
+	return renameio.WriteFile(file, data, 0o666)
 }
 
 func LoadState(file string) (*config.Config, error) {
