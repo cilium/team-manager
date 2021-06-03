@@ -30,7 +30,7 @@ type Config struct {
 
 	// Slice of github logins that should be excluded from all team reviews
 	// assignments.
-	ExcludeCRAFromAllTeams []string `json:"excludeCodeReviewAssignmentFromAllTeams,omitempty" yaml:"excludeCodeReviewAssignmentFromAllTeams,omitempty"`
+	ExcludeCRAFromAllTeams []string `json:"excludeCodeReviewAssignmentFromAllTeams" yaml:"excludeCodeReviewAssignmentFromAllTeams"`
 }
 
 type TeamConfig struct {
