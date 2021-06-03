@@ -33,12 +33,14 @@ var (
 	orgName        string
 	configFilename string
 	force          bool
+	dryRun         bool
 )
 
 func init() {
 	flag.StringVar(&orgName, "org", "cilium", "GitHub organization name")
 	flag.StringVar(&configFilename, "config-filename", "team-assignments.yaml", "GitHub organization and repository names separated by a slash")
 	flag.BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
+	flag.BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
 	flag.Parse()
 
 	go signals()
@@ -61,16 +63,19 @@ func main() {
 
 	var newConfig *config.Config
 	localCfg, err := persistence.LoadState(configFilename)
-	if errors.Is(err, os.ErrNotExist) {
+	switch {
+	case errors.Is(err, os.ErrNotExist):
 		fmt.Printf("Configuration file %q not found, retriving configuration from organization...\n", configFilename)
 		newConfig, err = tm.GetCurrentConfig(globalCtx)
 		if err != nil {
 			panic(err)
 		}
 		fmt.Printf("Done, change your local configuration and re-run me again.\n")
-	} else if err != nil {
+	case err != nil:
 		panic(err)
-	} else {
+	case dryRun:
+		newConfig = localCfg
+	default:
 		newConfig, err = tm.SyncTeams(globalCtx, localCfg, force)
 		if err != nil {
 			panic(err)
