@@ -63,6 +63,7 @@ func main() {
 
 	var newConfig *config.Config
 	localCfg, err := persistence.LoadState(configFilename)
+
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		fmt.Printf("Configuration file %q not found, retriving configuration from organization...\n", configFilename)
@@ -74,8 +75,16 @@ func main() {
 	case err != nil:
 		panic(err)
 	case dryRun:
+		err = config.SanityCheck(localCfg)
+		if err != nil {
+			panic(err)
+		}
 		newConfig = localCfg
 	default:
+		err = config.SanityCheck(localCfg)
+		if err != nil {
+			panic(err)
+		}
 		newConfig, err = tm.SyncTeams(globalCtx, localCfg, force)
 		if err != nil {
 			panic(err)
