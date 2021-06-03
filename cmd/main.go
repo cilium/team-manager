@@ -34,6 +34,8 @@ var (
 	configFilename string
 	force          bool
 	dryRun         bool
+	addUsers       []string
+	addTeams       []string
 )
 
 func init() {
@@ -41,6 +43,8 @@ func init() {
 	flag.StringVar(&configFilename, "config-filename", "team-assignments.yaml", "GitHub organization and repository names separated by a slash")
 	flag.BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
 	flag.BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
+	flag.StringSliceVar(&addUsers, "add-users", nil, "Adds new users to the configuration file")
+	flag.StringSliceVar(&addTeams, "add-teams", nil, "Adds new teams to the configuration file")
 	flag.Parse()
 
 	go signals()
@@ -74,12 +78,31 @@ func main() {
 		fmt.Printf("Done, change your local configuration and re-run me again.\n")
 	case err != nil:
 		panic(err)
-	case dryRun:
+	case dryRun || len(addUsers) != 0 || len(addTeams) != 0:
+		newConfig = localCfg
+		for _, addUser := range addUsers {
+			u, _, err := ghClient.Users.Get(globalCtx, addUser)
+			if err != nil {
+				panic(err)
+			}
+			newConfig.Members[u.GetLogin()] = config.User{
+				ID:   u.GetNodeID(),
+				Name: u.GetName(),
+			}
+		}
+		for _, addTeam := range addTeams {
+			t, _, err := ghClient.Teams.GetTeamBySlug(globalCtx, orgName, addTeam)
+			if err != nil {
+				panic(err)
+			}
+			newConfig.Teams[t.GetName()] = config.TeamConfig{
+				ID: t.GetNodeID(),
+			}
+		}
 		err = config.SanityCheck(localCfg)
 		if err != nil {
 			panic(err)
 		}
-		newConfig = localCfg
 	default:
 		err = config.SanityCheck(localCfg)
 		if err != nil {
