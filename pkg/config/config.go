@@ -14,6 +14,10 @@
 
 package config
 
+import (
+	"fmt"
+)
+
 type Config struct {
 	// Organization being managed.
 	Organization string `json:"organization,omitempty" yaml:"organization,omitempty"`
@@ -82,3 +86,22 @@ const (
 	TeamReviewAssignmentAlgorithmLoadBalance TeamReviewAssignmentAlgorithm = "LOAD_BALANCE"
 	TeamReviewAssignmentAlgorithmRoundRobin  TeamReviewAssignmentAlgorithm = "ROUND_ROBIN"
 )
+
+// SanityCheck checks if the all team members belong to the organization.
+func SanityCheck(cfg *Config) error {
+	// Check if all users in the CodeReviewAssignment belong to the list of
+	// members
+	for teamName, team := range cfg.Teams {
+		for _, member := range team.Members {
+			if _, ok := cfg.Members[member]; !ok {
+				return fmt.Errorf("member %q from team %q does not belong to organization", member, teamName)
+			}
+		}
+		for _, xMember := range team.CodeReviewAssignment.ExcludedMembers {
+			if _, ok := cfg.Members[xMember.Login]; !ok {
+				return fmt.Errorf("member %q from code review assignment of team %q does not belong to organization", xMember.Login, teamName)
+			}
+		}
+	}
+	return nil
+}
