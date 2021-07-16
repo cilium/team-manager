@@ -103,5 +103,10 @@ func SanityCheck(cfg *Config) error {
 			}
 		}
 	}
+	for _, xMember := range cfg.ExcludeCRAFromAllTeams {
+		if _, ok := cfg.Members[xMember]; !ok {
+			return fmt.Errorf("member %q from globally excluded reviews, does not belong to the organization", xMember)
+		}
+	}
 	return nil
 }
