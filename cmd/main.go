@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
 	"sort"
 	"strings"
 
@@ -61,20 +60,11 @@ func init() {
 	flag.StringSliceVar(&addPTO, "add-pto", nil, "Add users on PTO")
 	flag.StringSliceVar(&removePTO, "remove-pto", nil, "Remove users from PTO")
 	flag.Parse()
-
-	go signals()
-}
-
-var globalCtx, cancel = context.WithCancel(context.Background())
-
-func signals() {
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt)
-	<-signalCh
-	cancel()
 }
 
 func main() {
+	ctx := context.Background()
+
 	ghClient := github.NewClient(os.Getenv("GITHUB_TOKEN"))
 	ghGraphQLClient := github.NewClientGraphQL(os.Getenv("GITHUB_TOKEN"))
 
@@ -86,7 +76,7 @@ func main() {
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		fmt.Printf("Configuration file %q not found, retriving configuration from organization...\n", configFilename)
-		newConfig, err = tm.GetCurrentConfig(globalCtx)
+		newConfig, err = tm.GetCurrentConfig(ctx)
 		if err != nil {
 			panic(err)
 		}
@@ -99,7 +89,7 @@ func main() {
 		newConfig = localCfg
 
 		for _, addUser := range addUsers {
-			u, _, err := ghClient.Users.Get(globalCtx, addUser)
+			u, _, err := ghClient.Users.Get(ctx, addUser)
 			if err != nil {
 				panic(err)
 			}
@@ -110,7 +100,7 @@ func main() {
 		}
 
 		for _, addTeam := range addTeams {
-			t, _, err := ghClient.Teams.GetTeamBySlug(globalCtx, orgName, addTeam)
+			t, _, err := ghClient.Teams.GetTeamBySlug(ctx, orgName, addTeam)
 			if err != nil {
 				panic(err)
 			}
@@ -168,7 +158,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		newConfig, err = tm.SyncTeams(globalCtx, localCfg, force)
+		newConfig, err = tm.SyncTeams(ctx, localCfg, force)
 		if err != nil {
 			panic(err)
 		}
