@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sort"
+	"strings"
 
 	"github.com/cilium/team-manager/pkg/config"
 	"github.com/cilium/team-manager/pkg/github"
@@ -29,6 +31,9 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
+// A stringSet is a set of strings.
+type stringSet map[string]struct{}
+
 var (
 	orgName        string
 	configFilename string
@@ -36,15 +41,27 @@ var (
 	dryRun         bool
 	addUsers       []string
 	addTeams       []string
+	setBackporter  []string
+	setJanitor     []string
+	setTopHat      []string
+	setTriage      []string
+	addPTO         []string
+	removePTO      []string
 )
 
 func init() {
 	flag.StringVar(&orgName, "org", "cilium", "GitHub organization name")
-	flag.StringVar(&configFilename, "config-filename", "team-assignments.yaml", "GitHub organization and repository names separated by a slash")
+	flag.StringVar(&configFilename, "config-filename", "team-assignments.yaml", "Config filename")
 	flag.BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
 	flag.BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
 	flag.StringSliceVar(&addUsers, "add-users", nil, "Adds new users to the configuration file")
 	flag.StringSliceVar(&addTeams, "add-teams", nil, "Adds new teams to the configuration file")
+	flag.StringSliceVar(&setBackporter, "set-backporter", nil, "Sets the the members of the backporter team")
+	flag.StringSliceVar(&setJanitor, "set-janitor", nil, "Sets the the members of the janitor team")
+	flag.StringSliceVar(&setTopHat, "set-top-hat", nil, "Sets the the members of the top hat team")
+	flag.StringSliceVar(&setTriage, "set-triage", nil, "Sets the the members of the triage team")
+	flag.StringSliceVar(&addPTO, "add-pto", nil, "Add users on PTO")
+	flag.StringSliceVar(&removePTO, "remove-pto", nil, "Remove users from PTO")
 	flag.Parse()
 
 	go signals()
@@ -78,8 +95,11 @@ func main() {
 		fmt.Printf("Done, change your local configuration and re-run me again.\n")
 	case err != nil:
 		panic(err)
-	case dryRun || len(addUsers) != 0 || len(addTeams) != 0:
+	case dryRun || len(addUsers) != 0 || len(addTeams) != 0 ||
+		len(setBackporter) != 0 || len(setJanitor) != 0 || len(setTopHat) != 0 || len(setTriage) != 0 ||
+		len(addPTO) != 0 || len(removePTO) != 0:
 		newConfig = localCfg
+
 		for _, addUser := range addUsers {
 			u, _, err := ghClient.Users.Get(globalCtx, addUser)
 			if err != nil {
@@ -90,6 +110,7 @@ func main() {
 				Name: u.GetName(),
 			}
 		}
+
 		for _, addTeam := range addTeams {
 			t, _, err := ghClient.Teams.GetTeamBySlug(globalCtx, orgName, addTeam)
 			if err != nil {
@@ -99,6 +120,47 @@ func main() {
 				ID: t.GetNodeID(),
 			}
 		}
+
+		for _, team := range []struct {
+			team  string
+			users []string
+		}{
+			{"backporter", append(setBackporter, setTopHat...)},
+			{"janitors", append(setJanitor, setTopHat...)},
+			{"triage", append(setTriage, setTopHat...)},
+		} {
+			if len(team.users) == 0 {
+				continue
+			}
+			members, err := findUsers(newConfig, team.users)
+			if err != nil {
+				panic(err)
+			}
+			teamConfig, ok := newConfig.Teams[team.team]
+			if !ok {
+				panic(fmt.Sprintf("%s: unknown team", team))
+			}
+			teamConfig.Members = newStringSet(members...).elements()
+			newConfig.Teams[team.team] = teamConfig
+		}
+
+		excludeCRAFromAllTeams := newStringSet(newConfig.ExcludeCRAFromAllTeams...)
+		for _, s := range addPTO {
+			user, err := findUser(newConfig, s)
+			if err != nil {
+				panic(err)
+			}
+			excludeCRAFromAllTeams.add(user)
+		}
+		for _, s := range removePTO {
+			user, err := findUser(newConfig, s)
+			if err != nil {
+				panic(err)
+			}
+			excludeCRAFromAllTeams.remove(user)
+		}
+		newConfig.ExcludeCRAFromAllTeams = excludeCRAFromAllTeams.elements()
+
 		err = config.SanityCheck(localCfg)
 		if err != nil {
 			panic(err)
@@ -119,5 +181,71 @@ func main() {
 	err = persistence.StoreState(configFilename, newConfig)
 	if err != nil {
 		panic(err)
+	}
+}
+
+func findUser(config *config.Config, s string) (string, error) {
+	// First, try to find users by exact match of the Github username.
+	if _, ok := config.Members[s]; ok {
+		return s, nil
+	}
+
+	// Second, try to find githubUsernames by substring matching their name.
+	var githubUsernames []string
+	for githubUsername, user := range config.Members {
+		if strings.Contains(strings.ToLower(user.Name), strings.ToLower(s)) {
+			githubUsernames = append(githubUsernames, githubUsername)
+		}
+	}
+	switch len(githubUsernames) {
+	case 0:
+		return "", fmt.Errorf("%s: user not found", s)
+	case 1:
+		return githubUsernames[0], nil
+	default:
+		return "", fmt.Errorf("%s: ambiguous user (found %s)", s, strings.Join(githubUsernames, ", "))
+	}
+}
+
+func findUsers(config *config.Config, ss []string) ([]string, error) {
+	users := make([]string, 0, len(ss))
+	for _, s := range ss {
+		user, err := findUser(config, s)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, nil
+}
+
+// newStringSet returns a new StringSet containing elements.
+func newStringSet(elements ...string) stringSet {
+	s := make(stringSet)
+	s.add(elements...)
+	return s
+}
+
+// add adds elements to s.
+func (s stringSet) add(elements ...string) {
+	for _, element := range elements {
+		s[element] = struct{}{}
+	}
+}
+
+// elements returns all the elements of s.
+func (s stringSet) elements() []string {
+	elements := make([]string, 0, len(s))
+	for element := range s {
+		elements = append(elements, element)
+	}
+	sort.Strings(elements)
+	return elements
+}
+
+// remove removes elements from s.
+func (s stringSet) remove(elements ...string) {
+	for _, element := range elements {
+		delete(s, element)
 	}
 }
