@@ -34,12 +34,12 @@ make team-manager
 
 ```bash
 $ ./team-manager --org cilium
-Configuration file "team-assignments.yaml" not found, retriving configuration from organization...
+Configuration file "team-assignments.yaml" not found, retrieving configuration from organization...
 Done, change your local configuration and re-run me again.
 ```
 
 3. Modify your file accordingly the available options, for example (the yaml
-   comments will not show up in the generated file and will be removed everytime
+   comments will not show up in the generated file and will be removed every time
    `./team-manager` is executed):
 
 ```yaml
