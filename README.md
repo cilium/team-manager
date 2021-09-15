@@ -98,7 +98,8 @@ teams:
 # that they belong. This list can exist for numerous reasons, person is
 # currently PTO or busy with other work.
 excludeCodeReviewAssignmentFromAllTeams:
-- borkmann
+- login: borkmann
+  reason: PTO
 ```
 
 4. Once the changes stored in a local configuration file, re-run `./team-manager`:
