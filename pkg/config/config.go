@@ -30,7 +30,7 @@ type Config struct {
 
 	// Slice of github logins that should be excluded from all team reviews
 	// assignments.
-	ExcludeCRAFromAllTeams []string `json:"excludeCodeReviewAssignmentFromAllTeams" yaml:"excludeCodeReviewAssignmentFromAllTeams"`
+	ExcludeCRAFromAllTeams []ExcludedMember `json:"excludeCodeReviewAssignmentFromAllTeams" yaml:"excludeCodeReviewAssignmentFromAllTeams"`
 }
 
 type TeamConfig struct {
@@ -104,7 +104,7 @@ func SanityCheck(cfg *Config) error {
 		}
 	}
 	for _, xMember := range cfg.ExcludeCRAFromAllTeams {
-		if _, ok := cfg.Members[xMember]; !ok {
+		if _, ok := cfg.Members[xMember.Login]; !ok {
 			return fmt.Errorf("member %q from globally excluded reviews, does not belong to the organization", xMember)
 		}
 	}

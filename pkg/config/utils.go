@@ -44,5 +44,8 @@ func SortConfig(cfg *Config) {
 		cfg.Teams[teamName] = team
 	}
 	// Sort excluded team members
-	sort.Strings(cfg.ExcludeCRAFromAllTeams)
+	sort.Slice(cfg.ExcludeCRAFromAllTeams, func(i, j int) bool {
+		return cfg.ExcludeCRAFromAllTeams[i].Login <
+			cfg.ExcludeCRAFromAllTeams[j].Login
+	})
 }
