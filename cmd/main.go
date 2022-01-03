@@ -41,10 +41,7 @@ var (
 	dryRun         bool
 	addUsers       []string
 	addTeams       []string
-	setBackporter  []string
-	setJanitor     []string
 	setTopHat      []string
-	setTriage      []string
 	addPTO         []string
 	removePTO      []string
 )
@@ -56,10 +53,7 @@ func init() {
 	flag.BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
 	flag.StringSliceVar(&addUsers, "add-users", nil, "Adds new users to the configuration file")
 	flag.StringSliceVar(&addTeams, "add-teams", nil, "Adds new teams to the configuration file")
-	flag.StringSliceVar(&setBackporter, "set-backporter", nil, "Sets the the members of the backporter team")
-	flag.StringSliceVar(&setJanitor, "set-janitor", nil, "Sets the the members of the janitor team")
 	flag.StringSliceVar(&setTopHat, "set-top-hat", nil, "Sets the the members of the top hat team")
-	flag.StringSliceVar(&setTriage, "set-triage", nil, "Sets the the members of the triage team")
 	flag.StringSliceVar(&addPTO, "add-pto", nil, "Add users on PTO")
 	flag.StringSliceVar(&removePTO, "remove-pto", nil, "Remove users from PTO")
 	flag.Parse()
@@ -96,8 +90,7 @@ func main() {
 	case err != nil:
 		panic(err)
 	case dryRun || len(addUsers) != 0 || len(addTeams) != 0 ||
-		len(setBackporter) != 0 || len(setJanitor) != 0 || len(setTopHat) != 0 || len(setTriage) != 0 ||
-		len(addPTO) != 0 || len(removePTO) != 0:
+		len(setTopHat) != 0 || len(addPTO) != 0 || len(removePTO) != 0:
 		newConfig = localCfg
 
 		for _, addUser := range addUsers {
@@ -121,27 +114,17 @@ func main() {
 			}
 		}
 
-		for _, team := range []struct {
-			team  string
-			users []string
-		}{
-			{"backporter", append(setBackporter, setTopHat...)},
-			{"janitors", append(setJanitor, setTopHat...)},
-			{"triage", append(setTriage, setTopHat...)},
-		} {
-			if len(team.users) == 0 {
-				continue
-			}
-			members, err := findUsers(newConfig, team.users)
+		if len(setTopHat) > 0 {
+			members, err := findUsers(newConfig, setTopHat)
 			if err != nil {
 				panic(err)
 			}
-			teamConfig, ok := newConfig.Teams[team.team]
+			teamConfig, ok := newConfig.Teams["tophat"]
 			if !ok {
-				panic(fmt.Sprintf("%s: unknown team", team))
+				panic("unknown team tophat")
 			}
 			teamConfig.Members = newStringSet(members...).elements()
-			newConfig.Teams[team.team] = teamConfig
+			newConfig.Teams["tophat"] = teamConfig
 		}
 
 		excludeCRAFromAllTeams := newStringSet(newConfig.ExcludeCRAFromAllTeams...)
