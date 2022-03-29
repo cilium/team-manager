@@ -22,6 +22,9 @@ type Config struct {
 	// Organization being managed.
 	Organization string `json:"organization,omitempty" yaml:"organization,omitempty"`
 
+	// URL of the Slack workspace to which the Slack user IDs belong.
+	SlackWorkspace string `json:"slackWorkspace,omitempty" yaml:"slackWorkspace,omitempty"`
+
 	// Members maps the github login to a User.
 	Members map[string]User `json:"members,omitempty" yaml:"members,omitempty"`
 
@@ -50,6 +53,10 @@ type User struct {
 
 	// Name is the real name of the person behind this GH account.
 	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+
+	// SlackID is the Slack user ID of the person behind this GH account.
+	// The user ID can be found in the UI, under the profile of each user, under "More".
+	SlackID string `json:"slackID,omitempty" yaml:"slackID,omitempty"`
 }
 
 type ExcludedMember struct {

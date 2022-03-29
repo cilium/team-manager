@@ -44,6 +44,7 @@ Done, change your local configuration and re-run me again.
 
 ```yaml
 organization: cilium
+slackWorkspace: isovalent.slack.com
 # List of members that belong to the organization, ordered by GitHub login (username).
 members:
   aanm:
@@ -51,6 +52,8 @@ members:
     id: MDQ6VXNlcjU3MTQwNjY=
     # User real name, useful to know which person is behind a GitHub username.
     name: André Martins
+    # Slack user ID, to ping folks on Slack.
+    slackId: U3Z10R6HW
   borkmann:
     id: MDQ6VXNlcjY3NzM5Mw==
     name: Daniel Borkmann
