@@ -302,7 +302,7 @@ func (tm *Manager) SyncTeams(ctx context.Context, localCfg *config.Config, force
 
 // getExcludedUsers returns a list of all users that should be excluded for the
 // given team.
-func getExcludedUsers(teamName string, members map[string]config.User, excTeamMembers []config.ExcludedMember, excAllTeams []config.ExcludedMember) []githubv4.ID {
+func getExcludedUsers(teamName string, members map[string]config.User, excTeamMembers []config.ExcludedMember, excAllTeams []string) []githubv4.ID {
 	m := make(map[githubv4.ID]struct{}, len(excTeamMembers)+len(excAllTeams))
 	for _, member := range excTeamMembers {
 		user, ok := members[member.Login]
@@ -313,7 +313,7 @@ func getExcludedUsers(teamName string, members map[string]config.User, excTeamMe
 		m[user.ID] = struct{}{}
 	}
 	for _, member := range excAllTeams {
-		user, ok := members[member.Login]
+		user, ok := members[member]
 		if !ok {
 			// Ignore if it doesn't belong to the team
 			continue
