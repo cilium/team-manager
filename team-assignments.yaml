@@ -53,5 +53,4 @@ teams:
 # that they belong. This list can exist for numerous reasons, person is
 # currently PTO or busy with other work.
 excludeCodeReviewAssignmentFromAllTeams:
-- login: borkmann
-  reason: PTO
+- borkmann
