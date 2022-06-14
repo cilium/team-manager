@@ -1,13 +1,17 @@
+BUILD_VARS=CGO_ENABLED=0 GOARCH=${TARGETARCH}
+IMAGE=cilium/team-manager
+VERSION=latest
+
 all: local
 
 docker-image:
-	docker build -t cilium/team-manager:${VERSION} .
+	docker buildx build --push --builder default -t $(IMAGE):$(VERSION) .
 
 tests:
-	go test -mod=vendor ./...
+	$(BUILD_VARS) go test -mod=vendor ./...
 
 team-manager: tests
-	CGO_ENABLED=0 go build -mod=vendor -a -installsuffix cgo -o $@ ./cmd/main.go
+	$(BUILD_VARS) go build -mod=vendor -a -installsuffix cgo -o $@ ./cmd/main.go
 
 local: team-manager
 	strip team-manager
