@@ -22,8 +22,20 @@ var addUsersCmd = &cobra.Command{
 			panic(err)
 		}
 
+		for _, t := range addTeams {
+			if _, ok := cfg.Teams[t]; !ok {
+				panic(fmt.Errorf("unknown team %q", t))
+			}
+		}
+
 		if err = addUsersToConfig(args, cfg, ghClient); err != nil {
 			panic(err)
+		}
+
+		for _, t := range addTeams {
+			if err = addTeamMembers(t, args, cfg); err != nil {
+				panic(err)
+			}
 		}
 
 		if err = StoreState(cfg); err != nil {
@@ -34,6 +46,8 @@ var addUsersCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(addUsersCmd)
+
+	addUsersCmd.Flags().StringSliceVar(&addTeams, "teams", []string{}, "Add the users to the specified teams in the local cache")
 }
 
 func addUsersToConfig(addUsers []string, cfg *config.Config, ghClient *gh.Client) error {

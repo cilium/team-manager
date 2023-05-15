@@ -86,3 +86,12 @@ func setTeamMembers(team string, users []string, cfg *config.Config) error {
 
 	return nil
 }
+
+func addTeamMembers(team string, users []string, cfg *config.Config) error {
+	teamConfig, ok := cfg.Teams[team]
+	if !ok {
+		return fmt.Errorf("unknown team %q", team)
+	}
+	newMembers := newStringSet(append(teamConfig.Members, users...)...)
+	return setTeamMembers(team, newMembers.elements(), cfg)
+}
