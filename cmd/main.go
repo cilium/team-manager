@@ -26,7 +26,8 @@ import (
 	"github.com/cilium/team-manager/pkg/persistence"
 	"github.com/cilium/team-manager/pkg/team"
 
-	flag "github.com/spf13/pflag"
+	gh "github.com/google/go-github/v33/github"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -39,9 +40,19 @@ var (
 	setTopHat      []string
 	addPTO         []string
 	removePTO      []string
+
+	rootCmd = &cobra.Command{
+		Use:   "team-manager",
+		Short: "Manage GitHub team state locally and synchronize it with GitHub",
+		Run:   run,
+	}
+
+	errGithubToken = fmt.Errorf("Environment variable GITHUB_TOKEN must be set to interact with GitHub APIs.")
 )
 
 func init() {
+	flag := rootCmd.PersistentFlags()
+
 	flag.StringVar(&orgName, "org", "cilium", "GitHub organization name")
 	flag.StringVar(&configFilename, "config-filename", "team-assignments.yaml", "Config filename")
 	flag.BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
@@ -51,7 +62,6 @@ func init() {
 	flag.StringSliceVar(&setTopHat, "set-top-hat", nil, "Sets the the members of the top hat team")
 	flag.StringSliceVar(&addPTO, "add-pto", nil, "Add users on PTO")
 	flag.StringSliceVar(&removePTO, "remove-pto", nil, "Remove users from PTO")
-	flag.Parse()
 
 	go signals()
 }
@@ -65,19 +75,40 @@ func signals() {
 	cancel()
 }
 
-func main() {
+func InitState() (localCfg *config.Config, ghClient *gh.Client, err error) {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
-		panic("GITHUB_TOKEN must be set to interact with GitHub APIs.")
+		return nil, nil, errGithubToken
 	}
-	ghClient := github.NewClient(token)
-	ghGraphQLClient := github.NewClientGraphQL(token)
+	ghClient = github.NewClient(token)
 
+	localCfg, err = persistence.LoadState(configFilename)
+	if err != nil {
+		return nil, nil, err
+	}
+	return
+}
+
+func StoreState(cfg *config.Config) error {
+	if err := config.SanityCheck(cfg); err != nil {
+		return err
+	}
+	config.SortConfig(cfg)
+	if err := persistence.StoreState(configFilename, cfg); err != nil {
+		return err
+	}
+	return nil
+}
+
+func run(cmd *cobra.Command, args []string) {
+	localCfg, ghClient, err := InitState()
+	if err != nil {
+		panic(err)
+	}
+	var newConfig = localCfg
+
+	ghGraphQLClient := github.NewClientGraphQL(os.Getenv("GITHUB_TOKEN"))
 	tm := team.NewManager(ghClient, ghGraphQLClient, orgName)
-
-	var newConfig *config.Config
-	localCfg, err := persistence.LoadState(configFilename)
-
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		fmt.Printf("Configuration file %q not found, retriving configuration from organization...\n", configFilename)
@@ -110,11 +141,6 @@ func main() {
 		if err = removeCRAExclusionToConfig(removePTO, newConfig); err != nil {
 			panic(err)
 		}
-
-		err = config.SanityCheck(localCfg)
-		if err != nil {
-			panic(err)
-		}
 	default:
 		err = config.SanityCheck(localCfg)
 		if err != nil {
@@ -125,11 +151,14 @@ func main() {
 			panic(err)
 		}
 	}
-
-	config.SortConfig(newConfig)
-
-	err = persistence.StoreState(configFilename, newConfig)
-	if err != nil {
+	if err = StoreState(newConfig); err != nil {
 		panic(err)
+	}
+}
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 }

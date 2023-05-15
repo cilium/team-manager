@@ -10,7 +10,31 @@ import (
 	"github.com/cilium/team-manager/pkg/config"
 
 	gh "github.com/google/go-github/v33/github"
+	"github.com/spf13/cobra"
 )
+
+var addUsersCmd = &cobra.Command{
+	Use:   "add-user USER [USER ...]",
+	Short: "Add user to local configuration",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg, ghClient, err := InitState()
+		if err != nil {
+			panic(err)
+		}
+
+		if err = addUsersToConfig(args, cfg, ghClient); err != nil {
+			panic(err)
+		}
+
+		if err = StoreState(cfg); err != nil {
+			panic(err)
+		}
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(addUsersCmd)
+}
 
 func addUsersToConfig(addUsers []string, cfg *config.Config, ghClient *gh.Client) error {
 	for _, addUser := range addUsers {
