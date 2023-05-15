@@ -9,7 +9,30 @@ import (
 	"github.com/cilium/team-manager/pkg/config"
 
 	gh "github.com/google/go-github/v33/github"
+	"github.com/spf13/cobra"
 )
+
+var addTeamsCmd = &cobra.Command{
+	Use:   "add-team TEAM [TEAM ...]",
+	Short: "Add team to local configuration",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg, ghClient, err := InitState()
+		if err != nil {
+			panic(err)
+		}
+
+		if err = addTeamsToConfig(args, cfg, ghClient); err != nil {
+			panic(err)
+		}
+		if err = StoreState(cfg); err != nil {
+			panic(err)
+		}
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(addTeamsCmd)
+}
 
 func addTeamsToConfig(addTeams []string, cfg *config.Config, ghClient *gh.Client) error {
 	for _, addTeam := range addTeams {
