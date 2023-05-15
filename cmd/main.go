@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sort"
 	"strings"
 
 	"github.com/cilium/team-manager/pkg/config"
@@ -30,9 +29,6 @@ import (
 
 	flag "github.com/spf13/pflag"
 )
-
-// A stringSet is a set of strings.
-type stringSet map[string]struct{}
 
 var (
 	orgName        string
@@ -204,35 +200,4 @@ func findUsers(config *config.Config, ss []string) ([]string, error) {
 		users = append(users, user)
 	}
 	return users, nil
-}
-
-// newStringSet returns a new StringSet containing elements.
-func newStringSet(elements ...string) stringSet {
-	s := make(stringSet)
-	s.add(elements...)
-	return s
-}
-
-// add adds elements to s.
-func (s stringSet) add(elements ...string) {
-	for _, element := range elements {
-		s[element] = struct{}{}
-	}
-}
-
-// elements returns all the elements of s.
-func (s stringSet) elements() []string {
-	elements := make([]string, 0, len(s))
-	for element := range s {
-		elements = append(elements, element)
-	}
-	sort.Strings(elements)
-	return elements
-}
-
-// remove removes elements from s.
-func (s stringSet) remove(elements ...string) {
-	for _, element := range elements {
-		delete(s, element)
-	}
 }
