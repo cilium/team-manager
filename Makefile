@@ -7,7 +7,7 @@ tests:
 	go test -mod=vendor ./...
 
 team-manager: tests
-	CGO_ENABLED=0 go build -mod=vendor -a -installsuffix cgo -o $@ ./cmd/main.go
+	CGO_ENABLED=0 go build -mod=vendor -a -installsuffix cgo -o $@ ./cmd/
 
 local: team-manager
 	strip team-manager
