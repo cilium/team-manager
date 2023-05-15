@@ -71,8 +71,12 @@ func signals() {
 }
 
 func main() {
-	ghClient := github.NewClient(os.Getenv("GITHUB_TOKEN"))
-	ghGraphQLClient := github.NewClientGraphQL(os.Getenv("GITHUB_TOKEN"))
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		panic("GITHUB_TOKEN must be set to interact with GitHub APIs.")
+	}
+	ghClient := github.NewClient(token)
+	ghGraphQLClient := github.NewClientGraphQL(token)
 
 	tm := team.NewManager(ghClient, ghGraphQLClient, orgName)
 
