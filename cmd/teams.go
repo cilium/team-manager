@@ -30,8 +30,31 @@ var addTeamsCmd = &cobra.Command{
 	},
 }
 
+var setTeamsUsersCmd = &cobra.Command{
+	Use:   "set-team --team TEAM USER [USER ...]",
+	Short: "Set members of a team in local configuration",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg, _, err := InitState()
+		if err != nil {
+			panic(err)
+		}
+
+		for _, t := range addTeams {
+			if err = setTeamMembers(t, args, cfg); err != nil {
+				panic(err)
+			}
+		}
+		if err = StoreState(cfg); err != nil {
+			panic(err)
+		}
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(addTeamsCmd)
+	rootCmd.AddCommand(setTeamsUsersCmd)
+
+	setTeamsUsersCmd.Flags().StringSliceVar(&addTeams, "teams", []string{}, "Team whose membership should be modified locally")
 }
 
 func addTeamsToConfig(addTeams []string, cfg *config.Config, ghClient *gh.Client) error {
