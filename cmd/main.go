@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 
 	"github.com/cilium/team-manager/pkg/config"
 	"github.com/cilium/team-manager/pkg/github"
@@ -93,56 +92,24 @@ func main() {
 		len(setTopHat) != 0 || len(addPTO) != 0 || len(removePTO) != 0:
 		newConfig = localCfg
 
-		for _, addUser := range addUsers {
-			u, _, err := ghClient.Users.Get(globalCtx, addUser)
-			if err != nil {
-				panic(err)
-			}
-			newConfig.Members[u.GetLogin()] = config.User{
-				ID:   u.GetNodeID(),
-				Name: u.GetName(),
-			}
+		if err = addUsersToConfig(addUsers, newConfig, ghClient); err != nil {
+			panic(err)
 		}
 
-		for _, addTeam := range addTeams {
-			t, _, err := ghClient.Teams.GetTeamBySlug(globalCtx, orgName, addTeam)
-			if err != nil {
-				panic(err)
-			}
-			newConfig.Teams[t.GetName()] = config.TeamConfig{
-				ID: t.GetNodeID(),
-			}
+		if err = addTeamsToConfig(addUsers, newConfig, ghClient); err != nil {
+			panic(err)
 		}
 
-		if len(setTopHat) > 0 {
-			members, err := findUsers(newConfig, setTopHat)
-			if err != nil {
-				panic(err)
-			}
-			teamConfig, ok := newConfig.Teams["tophat"]
-			if !ok {
-				panic("unknown team tophat")
-			}
-			teamConfig.Members = newStringSet(members...).elements()
-			newConfig.Teams["tophat"] = teamConfig
+		if err = setTeamMembers("tophat", setTopHat, newConfig); err != nil {
+			panic(err)
 		}
 
-		excludeCRAFromAllTeams := newStringSet(newConfig.ExcludeCRAFromAllTeams...)
-		for _, s := range addPTO {
-			user, err := findUser(newConfig, s)
-			if err != nil {
-				panic(err)
-			}
-			excludeCRAFromAllTeams.add(user)
+		if err = addCRAExclusionToConfig(addPTO, newConfig); err != nil {
+			panic(err)
 		}
-		for _, s := range removePTO {
-			user, err := findUser(newConfig, s)
-			if err != nil {
-				panic(err)
-			}
-			excludeCRAFromAllTeams.remove(user)
+		if err = removeCRAExclusionToConfig(removePTO, newConfig); err != nil {
+			panic(err)
 		}
-		newConfig.ExcludeCRAFromAllTeams = excludeCRAFromAllTeams.elements()
 
 		err = config.SanityCheck(localCfg)
 		if err != nil {
@@ -165,39 +132,4 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func findUser(config *config.Config, s string) (string, error) {
-	// First, try to find users by exact match of the Github username.
-	if _, ok := config.Members[s]; ok {
-		return s, nil
-	}
-
-	// Second, try to find githubUsernames by substring matching their name.
-	var githubUsernames []string
-	for githubUsername, user := range config.Members {
-		if strings.Contains(strings.ToLower(user.Name), strings.ToLower(s)) {
-			githubUsernames = append(githubUsernames, githubUsername)
-		}
-	}
-	switch len(githubUsernames) {
-	case 0:
-		return "", fmt.Errorf("%s: user not found", s)
-	case 1:
-		return githubUsernames[0], nil
-	default:
-		return "", fmt.Errorf("%s: ambiguous user (found %s)", s, strings.Join(githubUsernames, ", "))
-	}
-}
-
-func findUsers(config *config.Config, ss []string) ([]string, error) {
-	users := make([]string, 0, len(ss))
-	for _, s := range ss {
-		user, err := findUser(config, s)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-	return users, nil
 }
