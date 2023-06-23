@@ -50,110 +50,173 @@ func NewManager(ghClient *gh.Client, gqlGHClient *githubv4.Client, owner string)
 // It will not populate the excludedMembers from CodeReviewAssignments as GH
 // does not provide an API of such field.
 func (tm *Manager) GetCurrentConfig(ctx context.Context) (*config.Config, error) {
-	// {
-	//  organization(login: "cilium") {
-	//    teams(first: 100) {
-	//      nodes {
-	//        members(first: 100) {
-	//          nodes {
-	//            id
-	//            login
-	//          }
-	//        }
-	//      }
-	//    }
-	//  }
-	// }
-	var q struct {
-		Organization struct {
-			Teams struct {
-				Nodes []struct {
-					Members struct {
-						Nodes []struct {
-							ID    githubv4.ID
-							Login githubv4.String
-							Name  githubv4.String
-						}
-						PageInfo struct {
-							EndCursor   githubv4.String
-							HasNextPage githubv4.Boolean
-						}
-					} `graphql:"members(first: 100, after: $membersCursor)"`
-					ID                                 githubv4.ID
-					DatabaseID                         githubv4.Int
-					Name                               githubv4.String
-					ReviewRequestDelegationEnabled     githubv4.Boolean
-					ReviewRequestDelegationAlgorithm   githubv4.String
-					ReviewRequestDelegationMemberCount githubv4.Int
-					ReviewRequestDelegationNotifyTeam  githubv4.Boolean
-				}
-				PageInfo struct {
-					EndCursor   githubv4.String
-					HasNextPage githubv4.Boolean
-				}
-			} `graphql:"teams(first: 100, after: $teamsCursor)"`
-		} `graphql:"organization(login: $repositoryOwner)"`
-	}
-	variables := map[string]interface{}{
-		"repositoryOwner": githubv4.String(tm.owner),
-		"teamsCursor":     (*githubv4.String)(nil), // Null after argument to get first page.
-		"membersCursor":   (*githubv4.String)(nil), // Null after argument to get first page.
-	}
 	c := &config.Config{
 		Organization: tm.owner,
 		Teams:        map[string]config.TeamConfig{},
 		Members:      map[string]config.User{},
 	}
+
+	variables := map[string]interface{}{}
+
+	result, err := tm.query(ctx, variables)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query github api: %w", err)
+	}
+
+	requeryTeams := false
 	for {
-	reQuery:
-		err := tm.gqlGHClient.Query(ctx, &q, variables)
-		if err != nil {
-			return nil, err
+		if requeryTeams {
+			result, err = tm.query(ctx, variables)
+			if err != nil {
+				return nil, fmt.Errorf("failed to requery teams: %w", err)
+			}
+			requeryTeams = false
 		}
-		for _, team := range q.Organization.Teams.Nodes {
-			strTeamName := string(team.Name)
+
+		for _, t := range result.Organization.Teams.Nodes {
+			strTeamName := string(t.Name)
 			teamCfg, ok := c.Teams[strTeamName]
 			if !ok {
 				var cra config.CodeReviewAssignment
-				if team.ReviewRequestDelegationEnabled {
+				if t.ReviewRequestDelegationEnabled {
 					cra = config.CodeReviewAssignment{
-						Algorithm:       config.TeamReviewAssignmentAlgorithm(team.ReviewRequestDelegationAlgorithm),
-						Enabled:         bool(team.ReviewRequestDelegationEnabled),
-						NotifyTeam:      bool(team.ReviewRequestDelegationNotifyTeam),
-						TeamMemberCount: int(team.ReviewRequestDelegationMemberCount),
+						Algorithm:       config.TeamReviewAssignmentAlgorithm(t.ReviewRequestDelegationAlgorithm),
+						Enabled:         bool(t.ReviewRequestDelegationEnabled),
+						NotifyTeam:      bool(t.ReviewRequestDelegationNotifyTeam),
+						TeamMemberCount: int(t.ReviewRequestDelegationMemberCount),
 					}
 				}
 				teamCfg = config.TeamConfig{
-					ID:                   fmt.Sprintf("%v", team.ID),
+					ID:                   fmt.Sprintf("%v", t.ID),
 					CodeReviewAssignment: cra,
 				}
 			}
-			for _, member := range team.Members.Nodes {
-				strLogin := string(member.Login)
-				teamCfg.Members = append(teamCfg.Members, strLogin)
-				c.Members[strLogin] = config.User{
-					ID:   fmt.Sprintf("%v", member.ID),
-					Name: string(member.Name),
+
+			requeryMembers := false
+			for {
+				// Requery of members shouldn't override the teams result
+				innerResult := result
+				if requeryMembers {
+					innerResult, err = tm.query(ctx, variables)
+					if err != nil {
+						return nil, fmt.Errorf("failed to requery team members: %w", err)
+					}
+					requeryMembers = false
 				}
-				sort.Slice(teamCfg.Members, func(i, j int) bool {
-					return teamCfg.Members[i] < teamCfg.Members[j]
-				})
+				// Find team in result - especially important after requerying
+				teamNode, err := innerResult.Organization.Teams.WithID(t.ID)
+				if err != nil {
+					return nil, err
+				}
+				for _, member := range teamNode.Members.Nodes {
+					strLogin := string(member.Login)
+					teamCfg.Members = append(teamCfg.Members, strLogin)
+					c.Members[strLogin] = config.User{
+						ID:   fmt.Sprintf("%v", member.ID),
+						Name: string(member.Name),
+					}
+					sort.Slice(teamCfg.Members, func(i, j int) bool {
+						return teamCfg.Members[i] < teamCfg.Members[j]
+					})
+				}
+				c.Teams[strTeamName] = teamCfg
+				if !teamNode.Members.PageInfo.HasNextPage {
+					break
+				}
+				requeryMembers = true
+				variables["membersCursor"] = githubv4.NewString(teamNode.Members.PageInfo.EndCursor)
 			}
-			c.Teams[strTeamName] = teamCfg
-			if !team.Members.PageInfo.HasNextPage {
-				continue
-			}
-			variables["membersCursor"] = githubv4.NewString(team.Members.PageInfo.EndCursor)
-			goto reQuery
 		}
-		if !q.Organization.Teams.PageInfo.HasNextPage {
+		if !result.Organization.Teams.PageInfo.HasNextPage {
 			break
 		}
-		variables["teamsCursor"] = githubv4.NewString(q.Organization.Teams.PageInfo.EndCursor)
+		requeryTeams = true
+		variables["teamsCursor"] = githubv4.NewString(result.Organization.Teams.PageInfo.EndCursor)
 		// Clear the membersCursor as we are only using it when querying over members
 		variables["membersCursor"] = (*githubv4.String)(nil)
 	}
 	return c, nil
+}
+
+func (tm *Manager) query(ctx context.Context, additionalVariables map[string]interface{}) (queryResult, error) {
+	var q queryResult
+	variables := map[string]interface{}{
+		"repositoryOwner": githubv4.String(tm.owner),
+		"teamsCursor":     (*githubv4.String)(nil), // Null after argument to get first page.
+		"membersCursor":   (*githubv4.String)(nil), // Null after argument to get first page.
+	}
+
+	for k, v := range additionalVariables {
+		variables[k] = v
+	}
+
+	err := tm.gqlGHClient.Query(ctx, &q, variables)
+	if err != nil {
+		return queryResult{}, err
+	}
+
+	return q, nil
+}
+
+//	{
+//	 organization(login: "cilium") {
+//	   teams(first: 100) {
+//	     nodes {
+//	       members(first: 100) {
+//	         nodes {
+//	           id
+//	           login
+//	         }
+//	       }
+//	     }
+//	   }
+//	 }
+//	}
+type queryResult struct {
+	Organization struct {
+		Teams Teams `graphql:"teams(first: 100, after: $teamsCursor)"`
+	} `graphql:"organization(login: $repositoryOwner)"`
+}
+
+type Teams struct {
+	Nodes    []team
+	PageInfo struct {
+		EndCursor   githubv4.String
+		HasNextPage githubv4.Boolean
+	}
+}
+
+func (t Teams) WithID(id githubv4.ID) (team, error) {
+	for _, n := range t.Nodes {
+		if n.ID == id {
+			return n, nil
+		}
+	}
+
+	return team{}, fmt.Errorf("team with id %q not found", id)
+}
+
+type team struct {
+	Members struct {
+		Nodes    []teamMember
+		PageInfo struct {
+			EndCursor   githubv4.String
+			HasNextPage githubv4.Boolean
+		}
+	} `graphql:"members(first: 100, after: $membersCursor)"`
+	ID                                 githubv4.ID
+	DatabaseID                         githubv4.Int
+	Name                               githubv4.String
+	ReviewRequestDelegationEnabled     githubv4.Boolean
+	ReviewRequestDelegationAlgorithm   githubv4.String
+	ReviewRequestDelegationMemberCount githubv4.Int
+	ReviewRequestDelegationNotifyTeam  githubv4.Boolean
+}
+
+type teamMember struct {
+	ID    githubv4.ID
+	Login githubv4.String
+	Name  githubv4.String
 }
 
 // SyncTeamMembers adds and removes the given login names into the given team
