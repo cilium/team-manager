@@ -131,8 +131,11 @@ func run(cmd *cobra.Command, args []string) {
 			panic(err)
 		}
 
-		if err = setTeamMembers("tophat", setTopHat, newConfig); err != nil {
-			panic(err)
+		if len(setTopHat) > 0 {
+			if err = setTeamMembers("tophat", setTopHat, newConfig); err != nil {
+
+				panic(err)
+			}
 		}
 
 		if err = addCRAExclusionToConfig(addPTO, newConfig); err != nil {
