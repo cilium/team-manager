@@ -77,7 +77,7 @@ func signals() {
 
 func InitState() (localCfg *config.Config, ghClient *gh.Client, err error) {
 	token := os.Getenv("GITHUB_TOKEN")
-	if token == "" {
+	if token == "" && !dryRun {
 		return nil, nil, errGithubToken
 	}
 	ghClient = github.NewClient(token)
