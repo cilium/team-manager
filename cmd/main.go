@@ -27,7 +27,6 @@ var (
 	configFilename string
 	force          bool
 	dryRun         bool
-	addTeams       []string
 
 	rootCmd = &cobra.Command{
 		Use:   "team-manager",
@@ -42,7 +41,6 @@ func init() {
 	flag.StringVar(&configFilename, "config-filename", "team-assignments.yaml", "Config filename")
 	flag.BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
 	flag.BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
-	flag.StringSliceVar(&addTeams, "add-teams", nil, "Adds new teams to the configuration file")
 }
 
 func main() {
