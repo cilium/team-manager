@@ -1,11 +1,11 @@
-# github.com/golang/protobuf v1.4.2
+# github.com/golang/protobuf v1.5.3
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
 # github.com/google/go-github/v33 v33.0.0
 ## explicit; go 1.15
 github.com/google/go-github/v33/github
-# github.com/google/go-querystring v1.0.0
-## explicit
+# github.com/google/go-querystring v1.1.0
+## explicit; go 1.10
 github.com/google/go-querystring/query
 # github.com/google/renameio v1.0.1
 ## explicit; go 1.13
@@ -13,19 +13,22 @@ github.com/google/renameio
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
-# github.com/kr/pretty v0.2.1
+# github.com/kr/pretty v0.3.1
 ## explicit; go 1.12
 github.com/kr/pretty
-# github.com/kr/text v0.1.0
+# github.com/kr/text v0.2.0
 ## explicit
 github.com/kr/text
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/shurcooL/githubv4 v0.0.0-00010101000000-000000000000 => github.com/aanm/githubv4 v0.0.0-20210126140237-7e156a79723b
+# github.com/rogpeppe/go-internal v1.10.0
+## explicit; go 1.19
+github.com/rogpeppe/go-internal/fmtsort
+# github.com/shurcooL/githubv4 v0.0.0-20230424031643-6cea62ecd5a9 => github.com/aanm/githubv4 v0.0.0-20210126140237-7e156a79723b
 ## explicit
 github.com/shurcooL/githubv4
-# github.com/shurcooL/graphql v0.0.0-00010101000000-000000000000 => github.com/aanm/graphql v0.0.0-20210126135448-cdc0856bcf8b
+# github.com/shurcooL/graphql v0.0.0-20220606043923-3cf50f8a0a29 => github.com/aanm/graphql v0.0.0-20210126135448-cdc0856bcf8b
 ## explicit
 github.com/shurcooL/graphql
 github.com/shurcooL/graphql/ident
@@ -36,8 +39,8 @@ github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-## explicit; go 1.11
+# golang.org/x/crypto v0.10.0
+## explicit; go 1.17
 golang.org/x/crypto/cast5
 golang.org/x/crypto/openpgp
 golang.org/x/crypto/openpgp/armor
@@ -45,15 +48,15 @@ golang.org/x/crypto/openpgp/elgamal
 golang.org/x/crypto/openpgp/errors
 golang.org/x/crypto/openpgp/packet
 golang.org/x/crypto/openpgp/s2k
-# golang.org/x/net v0.0.0-20200822124328-c89045814202
-## explicit; go 1.11
+# golang.org/x/net v0.11.0
+## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
-# golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
-## explicit; go 1.11
+# golang.org/x/oauth2 v0.9.0
+## explicit; go 1.17
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# google.golang.org/appengine v1.6.6
+# google.golang.org/appengine v1.6.7
 ## explicit; go 1.11
 google.golang.org/appengine/internal
 google.golang.org/appengine/internal/base
@@ -62,8 +65,8 @@ google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/protobuf v1.25.0
-## explicit; go 1.9
+# google.golang.org/protobuf v1.31.0
+## explicit; go 1.11
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
@@ -74,22 +77,23 @@ google.golang.org/protobuf/internal/encoding/messageset
 google.golang.org/protobuf/internal/encoding/tag
 google.golang.org/protobuf/internal/encoding/text
 google.golang.org/protobuf/internal/errors
-google.golang.org/protobuf/internal/fieldsort
 google.golang.org/protobuf/internal/filedesc
 google.golang.org/protobuf/internal/filetype
 google.golang.org/protobuf/internal/flags
 google.golang.org/protobuf/internal/genid
 google.golang.org/protobuf/internal/impl
-google.golang.org/protobuf/internal/mapsort
+google.golang.org/protobuf/internal/order
 google.golang.org/protobuf/internal/pragma
 google.golang.org/protobuf/internal/set
 google.golang.org/protobuf/internal/strs
 google.golang.org/protobuf/internal/version
 google.golang.org/protobuf/proto
+google.golang.org/protobuf/reflect/protodesc
 google.golang.org/protobuf/reflect/protoreflect
 google.golang.org/protobuf/reflect/protoregistry
 google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
+google.golang.org/protobuf/types/descriptorpb
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
