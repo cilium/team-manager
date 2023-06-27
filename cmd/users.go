@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -28,7 +29,7 @@ var addUsersCmd = &cobra.Command{
 			}
 		}
 
-		if err = addUsersToConfig(args, cfg, ghClient); err != nil {
+		if err = addUsersToConfig(cmd.Context(), args, cfg, ghClient); err != nil {
 			return fmt.Errorf("failed to add user: %w", err)
 		}
 
@@ -52,9 +53,9 @@ func init() {
 	addUsersCmd.Flags().StringSliceVar(&addTeams, "teams", []string{}, "Add the users to the specified teams in the local cache")
 }
 
-func addUsersToConfig(addUsers []string, cfg *config.Config, ghClient *gh.Client) error {
+func addUsersToConfig(ctx context.Context, addUsers []string, cfg *config.Config, ghClient *gh.Client) error {
 	for _, addUser := range addUsers {
-		u, _, err := ghClient.Users.Get(globalCtx, addUser)
+		u, _, err := ghClient.Users.Get(ctx, addUser)
 		if err != nil {
 			return err
 		}

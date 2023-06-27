@@ -28,7 +28,7 @@ var pullCmd = &cobra.Command{
 			}
 
 			_, _ = fmt.Fprintf(os.Stderr, "Configuration file %q not found, retriving configuration from organization...\n", configFilename)
-			cfg, err = tm.GetCurrentConfig(globalCtx)
+			cfg, err = tm.GetCurrentConfig(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("failed to fetch current config from GitHub: %w", err)
 			}
@@ -59,7 +59,7 @@ var pushCmd = &cobra.Command{
 
 		ghGraphQLClient := github.NewClientGraphQL(os.Getenv("GITHUB_TOKEN"))
 		tm := team.NewManager(ghClient, ghGraphQLClient, orgName)
-		if _, err = tm.SyncTeams(globalCtx, cfg, force); err != nil {
+		if _, err = tm.SyncTeams(cmd.Context(), cfg, force); err != nil {
 			return fmt.Errorf("failed to sync teams to GitHub: %w", err)
 		}
 

@@ -62,17 +62,6 @@ func init() {
 	flag.StringSliceVar(&setTopHat, "set-top-hat", nil, "Sets the the members of the top hat team")
 	flag.StringSliceVar(&addPTO, "add-pto", nil, "Add users on PTO")
 	flag.StringSliceVar(&removePTO, "remove-pto", nil, "Remove users from PTO")
-
-	go signals()
-}
-
-var globalCtx, cancel = context.WithCancel(context.Background())
-
-func signals() {
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt)
-	<-signalCh
-	cancel()
 }
 
 func InitState() (localCfg *config.Config, ghClient *gh.Client, err error) {
@@ -110,7 +99,7 @@ func run(cmd *cobra.Command, args []string) error {
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		fmt.Printf("Configuration file %q not found, retriving configuration from organization...\n", configFilename)
-		newConfig, err = tm.GetCurrentConfig(globalCtx)
+		newConfig, err = tm.GetCurrentConfig(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("failed to read config from GitHub: %w", err)
 		}
@@ -121,11 +110,11 @@ func run(cmd *cobra.Command, args []string) error {
 		len(setTopHat) != 0 || len(addPTO) != 0 || len(removePTO) != 0:
 		newConfig = localCfg
 
-		if err = addUsersToConfig(addUsers, newConfig, ghClient); err != nil {
+		if err = addUsersToConfig(cmd.Context(), addUsers, newConfig, ghClient); err != nil {
 			return fmt.Errorf("failed to add users: %w", err)
 		}
 
-		if err = addTeamsToConfig(addUsers, newConfig, ghClient); err != nil {
+		if err = addTeamsToConfig(cmd.Context(), addUsers, newConfig, ghClient); err != nil {
 			return fmt.Errorf("failed to add teams: %w", err)
 		}
 
@@ -146,7 +135,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to perform sanity check: %w", err)
 		}
-		newConfig, err = tm.SyncTeams(globalCtx, localCfg, force)
+		newConfig, err = tm.SyncTeams(cmd.Context(), localCfg, force)
 		if err != nil {
 			return fmt.Errorf("failed to sync teams to GitHub: %w", err)
 		}
@@ -159,7 +148,22 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
+	ctx := interruptableContext()
+
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
 	}
+}
+
+func interruptableContext() context.Context {
+	var ctx, cancel = context.WithCancel(context.Background())
+
+	go func() {
+		signalCh := make(chan os.Signal, 1)
+		signal.Notify(signalCh, os.Interrupt)
+		<-signalCh
+		cancel()
+	}()
+
+	return ctx
 }
