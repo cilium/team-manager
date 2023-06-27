@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	gh "github.com/google/go-github/v33/github"
@@ -21,7 +22,7 @@ var addTeamsCmd = &cobra.Command{
 			return fmt.Errorf("failed to initialize state: %w", err)
 		}
 
-		if err = addTeamsToConfig(args, cfg, ghClient); err != nil {
+		if err = addTeamsToConfig(cmd.Context(), args, cfg, ghClient); err != nil {
 			return fmt.Errorf("failed to add teams to config: %w", err)
 		}
 		if err = StoreState(cfg); err != nil {
@@ -61,9 +62,9 @@ func init() {
 	setTeamsUsersCmd.Flags().StringSliceVar(&addTeams, "teams", []string{}, "Team whose membership should be modified locally")
 }
 
-func addTeamsToConfig(addTeams []string, cfg *config.Config, ghClient *gh.Client) error {
+func addTeamsToConfig(ctx context.Context, addTeams []string, cfg *config.Config, ghClient *gh.Client) error {
 	for _, addTeam := range addTeams {
-		u, _, err := ghClient.Users.Get(globalCtx, addTeam)
+		u, _, err := ghClient.Users.Get(ctx, addTeam)
 		if err != nil {
 			return err
 		}
