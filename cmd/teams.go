@@ -33,7 +33,7 @@ var addTeamsCmd = &cobra.Command{
 		if err = addTeamsToConfig(cmd.Context(), args, cfg, ghClient); err != nil {
 			return fmt.Errorf("failed to add teams to config: %w", err)
 		}
-		if err = StoreState(cfg); err != nil {
+		if err = persistence.StoreState(configFilename, cfg); err != nil {
 			return fmt.Errorf("failed to store state to config: %w", err)
 		}
 
@@ -55,7 +55,7 @@ var setTeamsUsersCmd = &cobra.Command{
 				return fmt.Errorf("failed to set team members: %w", err)
 			}
 		}
-		if err = StoreState(cfg); err != nil {
+		if err = persistence.StoreState(configFilename, cfg); err != nil {
 			return fmt.Errorf("failed to store state to config: %w", err)
 		}
 

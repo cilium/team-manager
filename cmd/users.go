@@ -46,7 +46,7 @@ var addUsersCmd = &cobra.Command{
 			}
 		}
 
-		if err = StoreState(cfg); err != nil {
+		if err = persistence.StoreState(configFilename, cfg); err != nil {
 			return fmt.Errorf("failed to store state to config: %w", err)
 		}
 
