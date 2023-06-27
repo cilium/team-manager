@@ -31,12 +31,6 @@ var addUsersCmd = &cobra.Command{
 			return fmt.Errorf("failed to load local state: %w", err)
 		}
 
-		for _, t := range addTeams {
-			if _, ok := cfg.Teams[t]; !ok {
-				return fmt.Errorf("unknown team %q", t)
-			}
-		}
-
 		if err = addUsersToConfig(cmd.Context(), args, cfg, ghClient); err != nil {
 			return fmt.Errorf("failed to add user: %w", err)
 		}
