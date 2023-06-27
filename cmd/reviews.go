@@ -73,7 +73,7 @@ func addCRAExclusionToConfig(addCRAExclusion []string, cfg *config.Config) error
 
 func removeCRAExclusionToConfig(addCRAExclusion []string, cfg *config.Config) error {
 	excludeCRAFromAllTeams := stringset.New(cfg.ExcludeCRAFromAllTeams...)
-	for _, s := range removePTO {
+	for _, s := range addCRAExclusion {
 		user, err := findUser(cfg, s)
 		if err != nil {
 			return err
