@@ -16,6 +16,11 @@ import (
 	"github.com/cilium/team-manager/pkg/stringset"
 )
 
+func init() {
+	rootCmd.AddCommand(addTeamsCmd)
+	rootCmd.AddCommand(setTeamsUsersCmd)
+}
+
 var addTeamsCmd = &cobra.Command{
 	Use:   "add-team TEAM [TEAM ...]",
 	Short: "Add team to local configuration",
@@ -62,11 +67,6 @@ var setTeamsUsersCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-func init() {
-	rootCmd.AddCommand(addTeamsCmd)
-	rootCmd.AddCommand(setTeamsUsersCmd)
 }
 
 func addTeamsToConfig(ctx context.Context, addTeams []string, cfg *config.Config, ghClient *gh.Client) error {

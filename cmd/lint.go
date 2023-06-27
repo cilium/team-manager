@@ -12,7 +12,11 @@ import (
 	"github.com/cilium/team-manager/pkg/persistence"
 )
 
-var lintCmd = &cobra.Command{
+func init() {
+	rootCmd.AddCommand(checkCmd)
+}
+
+var checkCmd = &cobra.Command{
 	Use:   "lint",
 	Short: "Checks and formats local config",
 	Args:  cobra.ExactArgs(0),
@@ -34,8 +38,4 @@ var lintCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-func init() {
-	rootCmd.AddCommand(lintCmd)
 }
