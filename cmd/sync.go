@@ -16,6 +16,19 @@ import (
 	"github.com/cilium/team-manager/pkg/team"
 )
 
+var (
+	dryRun bool
+	force  bool
+)
+
+func init() {
+	rootCmd.AddCommand(pullCmd)
+	rootCmd.AddCommand(pushCmd)
+
+	pushCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
+	pushCmd.Flags().BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
+}
+
 var pullCmd = &cobra.Command{
 	Use:   "pull",
 	Short: "Fetch team assignments from GitHub",
@@ -86,17 +99,4 @@ var pushCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-var (
-	dryRun bool
-	force  bool
-)
-
-func init() {
-	rootCmd.AddCommand(pullCmd)
-	rootCmd.AddCommand(pushCmd)
-
-	pushCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
-	pushCmd.Flags().BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
 }

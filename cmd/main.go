@@ -25,11 +25,6 @@ import (
 var (
 	orgName        string
 	configFilename string
-
-	rootCmd = &cobra.Command{
-		Use:   "team-manager",
-		Short: "Manage GitHub team state locally and synchronize it with GitHub",
-	}
 )
 
 func init() {
@@ -37,6 +32,11 @@ func init() {
 
 	flag.StringVar(&orgName, "org", "cilium", "GitHub organization name")
 	flag.StringVar(&configFilename, "config-filename", "team-assignments.yaml", "Config filename")
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "team-manager",
+	Short: "Manage GitHub team state locally and synchronize it with GitHub",
 }
 
 func main() {

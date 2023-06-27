@@ -13,6 +13,11 @@ import (
 	"github.com/cilium/team-manager/pkg/stringset"
 )
 
+func init() {
+	rootCmd.AddCommand(addPTOCmd)
+	rootCmd.AddCommand(removePTOCmd)
+}
+
 var addPTOCmd = &cobra.Command{
 	Use:   "add-pto USER [USER ...]",
 	Short: "Exclude user from code review assignments",
@@ -53,11 +58,6 @@ var removePTOCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-func init() {
-	rootCmd.AddCommand(addPTOCmd)
-	rootCmd.AddCommand(removePTOCmd)
 }
 
 func addCRAExclusionToConfig(addCRAExclusion []string, cfg *config.Config) error {

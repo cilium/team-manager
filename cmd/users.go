@@ -16,6 +16,16 @@ import (
 	"github.com/cilium/team-manager/pkg/persistence"
 )
 
+var (
+	addTeams []string
+)
+
+func init() {
+	rootCmd.AddCommand(addUsersCmd)
+
+	addUsersCmd.Flags().StringSliceVar(&addTeams, "teams", []string{}, "Add the users to the specified teams in the local cache")
+}
+
 var addUsersCmd = &cobra.Command{
 	Use:   "add-user USER [USER ...]",
 	Short: "Add user to local configuration",
@@ -47,14 +57,6 @@ var addUsersCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-var addTeams []string
-
-func init() {
-	rootCmd.AddCommand(addUsersCmd)
-
-	addUsersCmd.Flags().StringSliceVar(&addTeams, "teams", []string{}, "Add the users to the specified teams in the local cache")
 }
 
 func addUsersToConfig(ctx context.Context, addUsers []string, cfg *config.Config, ghClient *gh.Client) error {
