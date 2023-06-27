@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
@@ -24,7 +25,7 @@ var addPTOCmd = &cobra.Command{
 		if err = addCRAExclusionToConfig(args, cfg); err != nil {
 			return fmt.Errorf("failed to add code review assignment exclusion: %w", err)
 		}
-		if err = StoreState(cfg); err != nil {
+		if err = persistence.StoreState(configFilename, cfg); err != nil {
 			return fmt.Errorf("failed to store state to config: %w", err)
 		}
 
@@ -44,7 +45,7 @@ var removePTOCmd = &cobra.Command{
 		if err := removeCRAExclusionToConfig(args, cfg); err != nil {
 			return fmt.Errorf("failed to remove code review assignment exclusion: %w", err)
 		}
-		if err = StoreState(cfg); err != nil {
+		if err = persistence.StoreState(configFilename, cfg); err != nil {
 			return fmt.Errorf("failed to store state to config: %w", err)
 		}
 

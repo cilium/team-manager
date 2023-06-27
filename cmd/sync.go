@@ -46,7 +46,7 @@ var pullCmd = &cobra.Command{
 			fmt.Printf("Done, change your local configuration and re-run me again.\n")
 		}
 
-		if err = StoreState(localCfg); err != nil {
+		if err = persistence.StoreState(configFilename, localCfg); err != nil {
 			return fmt.Errorf("failed to store state to config: %w", err)
 		}
 

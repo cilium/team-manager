@@ -61,17 +61,6 @@ func init() {
 	flag.StringSliceVar(&removePTO, "remove-pto", nil, "Remove users from PTO")
 }
 
-func StoreState(cfg *config.Config) error {
-	if err := config.SanityCheck(cfg); err != nil {
-		return err
-	}
-	config.SortConfig(cfg)
-	if err := persistence.StoreState(configFilename, cfg); err != nil {
-		return err
-	}
-	return nil
-}
-
 func run(cmd *cobra.Command, args []string) error {
 	ghClient, err := github.NewClientFromEnv()
 	if err != nil && !dryRun {
@@ -135,7 +124,7 @@ func run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to sync teams to GitHub: %w", err)
 		}
 	}
-	if err = StoreState(newConfig); err != nil {
+	if err = persistence.StoreState(configFilename, newConfig); err != nil {
 		return fmt.Errorf("failed to store state to config: %w", err)
 	}
 

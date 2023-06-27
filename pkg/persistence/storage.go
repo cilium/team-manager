@@ -23,11 +23,18 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func StoreState(file string, newConfig *config.Config) error {
-	data, err := yaml.Marshal(newConfig)
+func StoreState(file string, cfg *config.Config) error {
+	if err := config.SanityCheck(cfg); err != nil {
+		return err
+	}
+
+	config.SortConfig(cfg)
+
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}
+
 	return renameio.WriteFile(file, data, 0o666)
 }
 
