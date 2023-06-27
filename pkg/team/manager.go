@@ -115,10 +115,8 @@ func (tm *Manager) GetCurrentConfig(ctx context.Context) (*config.Config, error)
 						ID:   fmt.Sprintf("%v", member.ID),
 						Name: string(member.Name),
 					}
-					sort.Slice(teamCfg.Members, func(i, j int) bool {
-						return teamCfg.Members[i] < teamCfg.Members[j]
-					})
 				}
+				sort.Strings(teamCfg.Members)
 				c.Teams[strTeamName] = teamCfg
 				if !teamNode.Members.PageInfo.HasNextPage {
 					break
