@@ -1,6 +1,6 @@
 module github.com/cilium/team-manager
 
-go 1.18
+go 1.20
 
 require (
 	github.com/google/go-github/v33 v33.0.0
