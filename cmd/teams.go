@@ -19,6 +19,7 @@ import (
 var addTeamsCmd = &cobra.Command{
 	Use:   "add-team TEAM [TEAM ...]",
 	Short: "Add team to local configuration",
+	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ghClient, err := github.NewClientFromEnv()
 		if err != nil && !dryRun {

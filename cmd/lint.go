@@ -15,7 +15,8 @@ import (
 var lintCmd = &cobra.Command{
 	Use:   "lint",
 	Short: "Checks and formats local config",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args:  cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, _ []string) error {
 
 		localCfg, err := persistence.LoadState(configFilename)
 		if err != nil {
