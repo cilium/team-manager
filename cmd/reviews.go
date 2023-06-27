@@ -5,10 +5,10 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
+	"github.com/cilium/team-manager/pkg/persistence"
 	"github.com/cilium/team-manager/pkg/stringset"
 )
 
@@ -16,9 +16,9 @@ var addPTOCmd = &cobra.Command{
 	Use:   "add-pto USER [USER ...]",
 	Short: "Exclude user from code review assignments",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, _, err := InitState()
+		cfg, err := persistence.LoadState(configFilename)
 		if err != nil {
-			return fmt.Errorf("failed to initialize state: %w", err)
+			return fmt.Errorf("failed to load local state: %w", err)
 		}
 
 		if err = addCRAExclusionToConfig(args, cfg); err != nil {
@@ -36,9 +36,9 @@ var removePTOCmd = &cobra.Command{
 	Use:   "remove-pto USER [USER ...]",
 	Short: "Include user in code review assignments",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, _, err := InitState()
+		cfg, err := persistence.LoadState(configFilename)
 		if err != nil {
-			return fmt.Errorf("failed to initialize state: %w", err)
+			return fmt.Errorf("failed to load local state: %w", err)
 		}
 
 		if err := removeCRAExclusionToConfig(args, cfg); err != nil {

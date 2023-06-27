@@ -12,15 +12,22 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
+	"github.com/cilium/team-manager/pkg/github"
+	"github.com/cilium/team-manager/pkg/persistence"
 )
 
 var addUsersCmd = &cobra.Command{
 	Use:   "add-user USER [USER ...]",
 	Short: "Add user to local configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, ghClient, err := InitState()
+		ghClient, err := github.NewClientFromEnv()
+		if err != nil && !dryRun {
+			return fmt.Errorf("failed to create github client: %w", err)
+		}
+
+		cfg, err := persistence.LoadState(configFilename)
 		if err != nil {
-			return fmt.Errorf("failed to initialize state: %w", err)
+			return fmt.Errorf("failed to load local state: %w", err)
 		}
 
 		for _, t := range addTeams {

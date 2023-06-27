@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
+	"github.com/cilium/team-manager/pkg/github"
+	"github.com/cilium/team-manager/pkg/persistence"
 	"github.com/cilium/team-manager/pkg/stringset"
 )
 
@@ -18,9 +20,14 @@ var addTeamsCmd = &cobra.Command{
 	Use:   "add-team TEAM [TEAM ...]",
 	Short: "Add team to local configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, ghClient, err := InitState()
+		ghClient, err := github.NewClientFromEnv()
+		if err != nil && !dryRun {
+			return fmt.Errorf("failed to create github client: %w", err)
+		}
+
+		cfg, err := persistence.LoadState(configFilename)
 		if err != nil {
-			return fmt.Errorf("failed to initialize state: %w", err)
+			return fmt.Errorf("failed to load local state: %w", err)
 		}
 
 		if err = addTeamsToConfig(cmd.Context(), args, cfg, ghClient); err != nil {
@@ -38,9 +45,9 @@ var setTeamsUsersCmd = &cobra.Command{
 	Use:   "set-team --team TEAM USER [USER ...]",
 	Short: "Set members of a team in local configuration",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, _, err := InitState()
+		cfg, err := persistence.LoadState(configFilename)
 		if err != nil {
-			return fmt.Errorf("failed to initialize state: %w", err)
+			return fmt.Errorf("failed to load local state: %w", err)
 		}
 
 		for _, t := range addTeams {
