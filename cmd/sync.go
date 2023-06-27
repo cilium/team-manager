@@ -19,7 +19,8 @@ import (
 var pullCmd = &cobra.Command{
 	Use:   "pull",
 	Short: "Fetch team assignments from GitHub",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args:  cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ghClient, err := github.NewClientFromEnv()
 		if err != nil {
 			return fmt.Errorf("failed to create github client: %w", err)
@@ -57,7 +58,8 @@ var pullCmd = &cobra.Command{
 var pushCmd = &cobra.Command{
 	Use:   "push",
 	Short: "Update team assignments in GitHub from local files",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args:  cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfg, err := persistence.LoadState(configFilename)
 		if err != nil {
 			return fmt.Errorf("failed to load local state: %w", err)

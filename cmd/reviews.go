@@ -16,6 +16,7 @@ import (
 var addPTOCmd = &cobra.Command{
 	Use:   "add-pto USER [USER ...]",
 	Short: "Exclude user from code review assignments",
+	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := persistence.LoadState(configFilename)
 		if err != nil {
@@ -36,6 +37,7 @@ var addPTOCmd = &cobra.Command{
 var removePTOCmd = &cobra.Command{
 	Use:   "remove-pto USER [USER ...]",
 	Short: "Include user in code review assignments",
+	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := persistence.LoadState(configFilename)
 		if err != nil {
