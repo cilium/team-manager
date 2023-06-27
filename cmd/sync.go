@@ -69,22 +69,18 @@ var pushCmd = &cobra.Command{
 			return fmt.Errorf("failed to perform sanity check: %w", err)
 		}
 
-		if dryRun {
-			return nil
-		}
-
 		ghClient, err := github.NewClientFromEnv()
-		if err != nil && !dryRun {
+		if err != nil {
 			return fmt.Errorf("failed to create github client: %w", err)
 		}
 
 		ghGraphQLClient, err := github.NewClientGraphQLFromEnv()
-		if err != nil && !dryRun {
+		if err != nil {
 			return fmt.Errorf("failed to create github graphql client: %w", err)
 		}
 		tm := team.NewManager(ghClient, ghGraphQLClient, orgName)
 
-		if _, err = tm.SyncTeams(cmd.Context(), cfg, force); err != nil {
+		if _, err = tm.SyncTeams(cmd.Context(), cfg, force, dryRun); err != nil {
 			return fmt.Errorf("failed to sync teams to GitHub: %w", err)
 		}
 
@@ -92,7 +88,15 @@ var pushCmd = &cobra.Command{
 	},
 }
 
+var (
+	dryRun bool
+	force  bool
+)
+
 func init() {
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(pushCmd)
+
+	pushCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
+	pushCmd.Flags().BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
 }

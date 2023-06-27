@@ -25,8 +25,6 @@ import (
 var (
 	orgName        string
 	configFilename string
-	force          bool
-	dryRun         bool
 
 	rootCmd = &cobra.Command{
 		Use:   "team-manager",
@@ -39,8 +37,6 @@ func init() {
 
 	flag.StringVar(&orgName, "org", "cilium", "GitHub organization name")
 	flag.StringVar(&configFilename, "config-filename", "team-assignments.yaml", "Config filename")
-	flag.BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
-	flag.BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
 }
 
 func main() {
