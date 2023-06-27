@@ -1,3 +1,5 @@
+VERSION=$(shell git describe --tags --always)
+
 all: local
 
 docker-image:
