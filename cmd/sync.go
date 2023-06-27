@@ -4,10 +4,7 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
@@ -22,50 +19,10 @@ var (
 )
 
 func init() {
-	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(pushCmd)
 
 	pushCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
 	pushCmd.Flags().BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
-}
-
-var pullCmd = &cobra.Command{
-	Use:   "pull",
-	Short: "Fetch team assignments from GitHub",
-	Args:  cobra.ExactArgs(0),
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		ghClient, err := github.NewClientFromEnv()
-		if err != nil {
-			return fmt.Errorf("failed to create github client: %w", err)
-		}
-
-		ghGraphQLClient, err := github.NewClientGraphQLFromEnv()
-		if err != nil {
-			return fmt.Errorf("failed to create github graphql client: %w", err)
-		}
-
-		tm := team.NewManager(ghClient, ghGraphQLClient, orgName)
-
-		localCfg, err := persistence.LoadState(configFilename)
-		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("failed to load local state: %w", err)
-			}
-
-			fmt.Printf("Configuration file %q not found, retriving configuration from organization...\n", configFilename)
-			localCfg, err = tm.GetCurrentConfig(cmd.Context())
-			if err != nil {
-				return fmt.Errorf("failed to read config from GitHub: %w", err)
-			}
-			fmt.Printf("Done, change your local configuration and re-run me again.\n")
-		}
-
-		if err = persistence.StoreState(configFilename, localCfg); err != nil {
-			return fmt.Errorf("failed to store state to config: %w", err)
-		}
-
-		return nil
-	},
 }
 
 var pushCmd = &cobra.Command{
