@@ -6,47 +6,51 @@ package main
 import (
 	"fmt"
 
-	"github.com/cilium/team-manager/pkg/config"
-
 	gh "github.com/google/go-github/v33/github"
 	"github.com/spf13/cobra"
+
+	"github.com/cilium/team-manager/pkg/config"
 )
 
 var addTeamsCmd = &cobra.Command{
 	Use:   "add-team TEAM [TEAM ...]",
 	Short: "Add team to local configuration",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, ghClient, err := InitState()
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to initialize state: %w", err)
 		}
 
 		if err = addTeamsToConfig(args, cfg, ghClient); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to add teams to config: %w", err)
 		}
 		if err = StoreState(cfg); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to store state to config: %w", err)
 		}
+
+		return nil
 	},
 }
 
 var setTeamsUsersCmd = &cobra.Command{
 	Use:   "set-team --team TEAM USER [USER ...]",
 	Short: "Set members of a team in local configuration",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, _, err := InitState()
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to initialize state: %w", err)
 		}
 
 		for _, t := range addTeams {
 			if err = setTeamMembers(t, args, cfg); err != nil {
-				panic(err)
+				return fmt.Errorf("failed to set team members: %w", err)
 			}
 		}
 		if err = StoreState(cfg); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to store state to config: %w", err)
 		}
+
+		return nil
 	},
 }
 

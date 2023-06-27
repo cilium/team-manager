@@ -8,56 +8,62 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/cilium/team-manager/pkg/config"
 	"github.com/cilium/team-manager/pkg/github"
 	"github.com/cilium/team-manager/pkg/team"
-	"github.com/spf13/cobra"
 )
 
 var pullCmd = &cobra.Command{
 	Use:   "pull",
 	Short: "Fetch team assignments from GitHub",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, ghClient, err := InitState()
 		ghGraphQLClient := github.NewClientGraphQL(os.Getenv("GITHUB_TOKEN"))
 		tm := team.NewManager(ghClient, ghGraphQLClient, orgName)
-		switch {
-		case errors.Is(err, os.ErrNotExist):
-			fmt.Fprintf(os.Stderr, "Configuration file %q not found, retriving configuration from organization...\n", configFilename)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("failed to initialize state: %w", err)
+			}
+
+			_, _ = fmt.Fprintf(os.Stderr, "Configuration file %q not found, retriving configuration from organization...\n", configFilename)
 			cfg, err = tm.GetCurrentConfig(globalCtx)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to fetch current config from GitHub: %w", err)
 			}
-			fmt.Fprintf(os.Stderr, "Done, change your local configuration and re-run me again.\n")
-		case err != nil:
-			panic(err)
+			_, _ = fmt.Fprintf(os.Stderr, "Done, change your local configuration and re-run me again.\n")
 		}
 		if err = StoreState(cfg); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to store state to config: %w", err)
 		}
+
+		return nil
 	},
 }
 
 var pushCmd = &cobra.Command{
 	Use:   "push",
 	Short: "Update team assignments in GitHub from local files",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, ghClient, err := InitState()
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to initialize state: %w", err)
 		}
 		if err = config.SanityCheck(cfg); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to perform sanity check: %w", err)
 		}
 		if dryRun {
-			return
+			return nil
 		}
 
 		ghGraphQLClient := github.NewClientGraphQL(os.Getenv("GITHUB_TOKEN"))
 		tm := team.NewManager(ghClient, ghGraphQLClient, orgName)
 		if _, err = tm.SyncTeams(globalCtx, cfg, force); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to sync teams to GitHub: %w", err)
 		}
+
+		return nil
 	},
 }
 

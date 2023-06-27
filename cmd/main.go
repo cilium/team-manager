@@ -21,13 +21,13 @@ import (
 	"os"
 	"os/signal"
 
+	gh "github.com/google/go-github/v33/github"
+	"github.com/spf13/cobra"
+
 	"github.com/cilium/team-manager/pkg/config"
 	"github.com/cilium/team-manager/pkg/github"
 	"github.com/cilium/team-manager/pkg/persistence"
 	"github.com/cilium/team-manager/pkg/team"
-
-	gh "github.com/google/go-github/v33/github"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -44,7 +44,7 @@ var (
 	rootCmd = &cobra.Command{
 		Use:   "team-manager",
 		Short: "Manage GitHub team state locally and synchronize it with GitHub",
-		Run:   run,
+		RunE:  run,
 	}
 
 	errGithubToken = fmt.Errorf("Environment variable GITHUB_TOKEN must be set to interact with GitHub APIs.")
@@ -100,11 +100,9 @@ func StoreState(cfg *config.Config) error {
 	return nil
 }
 
-func run(cmd *cobra.Command, args []string) {
+func run(cmd *cobra.Command, args []string) error {
 	localCfg, ghClient, err := InitState()
-	if err != nil {
-		panic(err)
-	}
+
 	var newConfig = localCfg
 
 	ghGraphQLClient := github.NewClientGraphQL(os.Getenv("GITHUB_TOKEN"))
@@ -114,54 +112,54 @@ func run(cmd *cobra.Command, args []string) {
 		fmt.Printf("Configuration file %q not found, retriving configuration from organization...\n", configFilename)
 		newConfig, err = tm.GetCurrentConfig(globalCtx)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to read config from GitHub: %w", err)
 		}
 		fmt.Printf("Done, change your local configuration and re-run me again.\n")
 	case err != nil:
-		panic(err)
+		return fmt.Errorf("failed to initialize state: %w", err)
 	case dryRun || len(addUsers) != 0 || len(addTeams) != 0 ||
 		len(setTopHat) != 0 || len(addPTO) != 0 || len(removePTO) != 0:
 		newConfig = localCfg
 
 		if err = addUsersToConfig(addUsers, newConfig, ghClient); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to add users: %w", err)
 		}
 
 		if err = addTeamsToConfig(addUsers, newConfig, ghClient); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to add teams: %w", err)
 		}
 
 		if len(setTopHat) > 0 {
 			if err = setTeamMembers("tophat", setTopHat, newConfig); err != nil {
-
-				panic(err)
+				return fmt.Errorf("failed to set tophat team members: %w", err)
 			}
 		}
 
 		if err = addCRAExclusionToConfig(addPTO, newConfig); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to add code review assignment exclusion: %w", err)
 		}
 		if err = removeCRAExclusionToConfig(removePTO, newConfig); err != nil {
-			panic(err)
+			return fmt.Errorf("failed to remove code review assignment exclusion: %w", err)
 		}
 	default:
 		err = config.SanityCheck(localCfg)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to perform sanity check: %w", err)
 		}
 		newConfig, err = tm.SyncTeams(globalCtx, localCfg, force)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to sync teams to GitHub: %w", err)
 		}
 	}
 	if err = StoreState(newConfig); err != nil {
-		panic(err)
+		return fmt.Errorf("failed to store state to config: %w", err)
 	}
+
+	return nil
 }
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 }
