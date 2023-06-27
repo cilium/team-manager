@@ -42,19 +42,19 @@ var addTeamsCmd = &cobra.Command{
 }
 
 var setTeamsUsersCmd = &cobra.Command{
-	Use:   "set-team --team TEAM USER [USER ...]",
+	Use:   "set-team TEAM USER [USER ...]",
 	Short: "Set members of a team in local configuration",
+	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := persistence.LoadState(configFilename)
 		if err != nil {
 			return fmt.Errorf("failed to load local state: %w", err)
 		}
 
-		for _, t := range addTeams {
-			if err = setTeamMembers(t, args, cfg); err != nil {
-				return fmt.Errorf("failed to set team members: %w", err)
-			}
+		if err = setTeamMembers(args[0], args[1:], cfg); err != nil {
+			return fmt.Errorf("failed to set team members: %w", err)
 		}
+
 		if err = persistence.StoreState(configFilename, cfg); err != nil {
 			return fmt.Errorf("failed to store state to config: %w", err)
 		}
@@ -66,8 +66,6 @@ var setTeamsUsersCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(addTeamsCmd)
 	rootCmd.AddCommand(setTeamsUsersCmd)
-
-	setTeamsUsersCmd.Flags().StringSliceVar(&addTeams, "teams", []string{}, "Team whose membership should be modified locally")
 }
 
 func addTeamsToConfig(ctx context.Context, addTeams []string, cfg *config.Config, ghClient *gh.Client) error {
