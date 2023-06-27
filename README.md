@@ -33,9 +33,9 @@ make team-manager
 2. Generate configuration for your organization
 
 ```bash
-$ ./team-manager --org cilium
-Configuration file "team-assignments.yaml" not found, retrieving configuration from organization...
-Done, change your local configuration and re-run me again.
+$ ./team-manager init --org cilium
+Retrieving configuration from organization...
+Creating configuration file "cilium-team-assignments.yaml"...
 ```
 
 3. Modify your file accordingly the available options, for example (the yaml
@@ -104,10 +104,10 @@ excludeCodeReviewAssignmentFromAllTeams:
 - borkmann
 ```
 
-4. Once the changes stored in a local configuration file, re-run `./team-manager`:
+4. Once the changes stored in a local configuration file, run `./team-manager push --org cilium`:
 
 ```bash
-$ ./team-manager --org cilium
+$ ./team-manager push --org cilium
 Local config out of sync with upstream: Unified diff:
 --- local
 +++ remote
@@ -156,7 +156,7 @@ jobs:
         name: Sync team
         with:
           entrypoint: team-manager
-          args: --force --config-filename ./team-assignments.yaml
+          args: push --force --config-filename ./team-assignments.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.ADMIN_ORG_TOKEN }}
 ```
