@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
+	"github.com/cilium/team-manager/pkg/stringset"
 )
 
 var addTeamsCmd = &cobra.Command{
@@ -86,7 +87,7 @@ func setTeamMembers(team string, users []string, cfg *config.Config) error {
 	if !ok {
 		return fmt.Errorf("unknown team %q", team)
 	}
-	teamConfig.Members = newStringSet(members...).elements()
+	teamConfig.Members = stringset.New(members...).Elements()
 	cfg.Teams[team] = teamConfig
 
 	return nil
@@ -97,6 +98,6 @@ func addTeamMembers(team string, users []string, cfg *config.Config) error {
 	if !ok {
 		return fmt.Errorf("unknown team %q", team)
 	}
-	newMembers := newStringSet(append(teamConfig.Members, users...)...)
-	return setTeamMembers(team, newMembers.elements(), cfg)
+	newMembers := stringset.New(append(teamConfig.Members, users...)...)
+	return setTeamMembers(team, newMembers.Elements(), cfg)
 }

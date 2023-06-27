@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
+	"github.com/cilium/team-manager/pkg/stringset"
 )
 
 var addPTOCmd = &cobra.Command{
@@ -57,29 +58,29 @@ func init() {
 }
 
 func addCRAExclusionToConfig(addCRAExclusion []string, cfg *config.Config) error {
-	excludeCRAFromAllTeams := newStringSet(cfg.ExcludeCRAFromAllTeams...)
+	excludeCRAFromAllTeams := stringset.New(cfg.ExcludeCRAFromAllTeams...)
 	for _, s := range addCRAExclusion {
 		user, err := findUser(cfg, s)
 		if err != nil {
 			return err
 		}
-		excludeCRAFromAllTeams.add(user)
+		excludeCRAFromAllTeams.Add(user)
 	}
-	cfg.ExcludeCRAFromAllTeams = excludeCRAFromAllTeams.elements()
+	cfg.ExcludeCRAFromAllTeams = excludeCRAFromAllTeams.Elements()
 
 	return nil
 }
 
 func removeCRAExclusionToConfig(addCRAExclusion []string, cfg *config.Config) error {
-	excludeCRAFromAllTeams := newStringSet(cfg.ExcludeCRAFromAllTeams...)
+	excludeCRAFromAllTeams := stringset.New(cfg.ExcludeCRAFromAllTeams...)
 	for _, s := range removePTO {
 		user, err := findUser(cfg, s)
 		if err != nil {
 			return err
 		}
-		excludeCRAFromAllTeams.remove(user)
+		excludeCRAFromAllTeams.Remove(user)
 	}
-	cfg.ExcludeCRAFromAllTeams = excludeCRAFromAllTeams.elements()
+	cfg.ExcludeCRAFromAllTeams = excludeCRAFromAllTeams.Elements()
 
 	return nil
 }
