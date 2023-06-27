@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/signal"
 
-	gh "github.com/google/go-github/v33/github"
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
@@ -46,8 +45,6 @@ var (
 		Short: "Manage GitHub team state locally and synchronize it with GitHub",
 		RunE:  run,
 	}
-
-	errGithubToken = fmt.Errorf("Environment variable GITHUB_TOKEN must be set to interact with GitHub APIs.")
 )
 
 func init() {
@@ -64,20 +61,6 @@ func init() {
 	flag.StringSliceVar(&removePTO, "remove-pto", nil, "Remove users from PTO")
 }
 
-func InitState() (localCfg *config.Config, ghClient *gh.Client, err error) {
-	token := os.Getenv("GITHUB_TOKEN")
-	if token == "" && !dryRun {
-		return nil, nil, errGithubToken
-	}
-	ghClient = github.NewClient(token)
-
-	localCfg, err = persistence.LoadState(configFilename)
-	if err != nil {
-		return nil, nil, err
-	}
-	return
-}
-
 func StoreState(cfg *config.Config) error {
 	if err := config.SanityCheck(cfg); err != nil {
 		return err
@@ -90,22 +73,34 @@ func StoreState(cfg *config.Config) error {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	localCfg, ghClient, err := InitState()
+	ghClient, err := github.NewClientFromEnv()
+	if err != nil && !dryRun {
+		return fmt.Errorf("failed to create github client: %w", err)
+	}
 
-	var newConfig = localCfg
+	ghGraphQLClient, err := github.NewClientGraphQLFromEnv()
+	if err != nil && !dryRun {
+		return fmt.Errorf("failed to create github graphql client: %w", err)
+	}
 
-	ghGraphQLClient := github.NewClientGraphQL(os.Getenv("GITHUB_TOKEN"))
 	tm := team.NewManager(ghClient, ghGraphQLClient, orgName)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
+
+	localCfg, err := persistence.LoadState(configFilename)
+	var newConfig = localCfg
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("failed to load local state: %w", err)
+		}
+
 		fmt.Printf("Configuration file %q not found, retriving configuration from organization...\n", configFilename)
 		newConfig, err = tm.GetCurrentConfig(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("failed to read config from GitHub: %w", err)
 		}
 		fmt.Printf("Done, change your local configuration and re-run me again.\n")
-	case err != nil:
-		return fmt.Errorf("failed to initialize state: %w", err)
+	}
+
+	switch {
 	case dryRun || len(addUsers) != 0 || len(addTeams) != 0 ||
 		len(setTopHat) != 0 || len(addPTO) != 0 || len(removePTO) != 0:
 		newConfig = localCfg

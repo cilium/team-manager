@@ -16,11 +16,24 @@ package github
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	gh "github.com/google/go-github/v33/github"
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
 )
+
+var errGithubToken = fmt.Errorf("environment variable GITHUB_TOKEN must be set to interact with GitHub APIs")
+
+func NewClientFromEnv() (*gh.Client, error) {
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		return nil, errGithubToken
+	}
+
+	return NewClient(token), nil
+}
 
 func NewClient(ghToken string) *gh.Client {
 	return gh.NewClient(
@@ -33,6 +46,15 @@ func NewClient(ghToken string) *gh.Client {
 			),
 		),
 	)
+}
+
+func NewClientGraphQLFromEnv() (*githubv4.Client, error) {
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		return nil, errGithubToken
+	}
+
+	return NewClientGraphQL(token), nil
 }
 
 func NewClientGraphQL(ghToken string) *githubv4.Client {
