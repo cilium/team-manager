@@ -22,7 +22,7 @@ var addTeamsCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ghClient, err := github.NewClientFromEnv()
-		if err != nil && !dryRun {
+		if err != nil {
 			return fmt.Errorf("failed to create github client: %w", err)
 		}
 

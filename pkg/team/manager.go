@@ -22,14 +22,14 @@ import (
 	"sort"
 	"strings"
 
+	gh "github.com/google/go-github/v33/github"
+	"github.com/shurcooL/githubv4"
+
 	"github.com/cilium/team-manager/pkg/comparator"
 	"github.com/cilium/team-manager/pkg/config"
 	"github.com/cilium/team-manager/pkg/github"
 	"github.com/cilium/team-manager/pkg/slices"
 	"github.com/cilium/team-manager/pkg/terminal"
-
-	gh "github.com/google/go-github/v33/github"
-	"github.com/shurcooL/githubv4"
 )
 
 type Manager struct {
@@ -222,15 +222,13 @@ type teamMember struct {
 func (tm *Manager) SyncTeamMembers(ctx context.Context, teamName string, add, remove []string) error {
 	for _, user := range add {
 		fmt.Printf("Adding member %s to team %s\n", user, teamName)
-		_, _, err := tm.ghClient.Teams.AddTeamMembershipBySlug(ctx, tm.owner, teamName, user, &gh.TeamAddTeamMembershipOptions{Role: "member"})
-		if err != nil {
+		if _, _, err := tm.ghClient.Teams.AddTeamMembershipBySlug(ctx, tm.owner, teamName, user, &gh.TeamAddTeamMembershipOptions{Role: "member"}); err != nil {
 			return err
 		}
 	}
 	for _, user := range remove {
 		fmt.Printf("Removing member %s from team %s\n", user, teamName)
-		_, err := tm.ghClient.Teams.RemoveTeamMembershipBySlug(ctx, tm.owner, teamName, user)
-		if err != nil {
+		if _, err := tm.ghClient.Teams.RemoveTeamMembershipBySlug(ctx, tm.owner, teamName, user); err != nil {
 			return err
 		}
 	}
@@ -239,7 +237,7 @@ func (tm *Manager) SyncTeamMembers(ctx context.Context, teamName string, add, re
 
 // SyncTeamReviewAssignment updates the review assignment into GH for the given
 // team name with the given team ID.
-func (tm *Manager) SyncTeamReviewAssignment(ctx context.Context, teamName string, teamID githubv4.ID, input github.UpdateTeamReviewAssignmentInput) error {
+func (tm *Manager) SyncTeamReviewAssignment(ctx context.Context, teamID githubv4.ID, input github.UpdateTeamReviewAssignmentInput) error {
 	var m struct {
 		UpdateTeamReviewAssignment struct {
 			Team struct {
@@ -248,11 +246,10 @@ func (tm *Manager) SyncTeamReviewAssignment(ctx context.Context, teamName string
 		} `graphql:"updateTeamReviewAssignment(input: $input)"`
 	}
 	input.ID = teamID
-	fmt.Printf("Excluding members from team: %s\n", teamName)
 	return tm.gqlGHClient.Mutate(ctx, &m, input, nil)
 }
 
-func (tm *Manager) SyncTeams(ctx context.Context, localCfg *config.Config, force bool) (*config.Config, error) {
+func (tm *Manager) SyncTeams(ctx context.Context, localCfg *config.Config, force bool, dryRun bool) (*config.Config, error) {
 	upstreamCfg, err := tm.GetCurrentConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -300,10 +297,11 @@ func (tm *Manager) SyncTeams(ctx context.Context, localCfg *config.Config, force
 		}
 		if yes {
 			for teamName, teamCfg := range teamChanges {
-				err = tm.SyncTeamMembers(ctx, teamName, teamCfg.add, teamCfg.remove)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "[ERROR]:  Unable to sync team %s: %s\n", teamName, err)
-					continue
+				if !dryRun {
+					if err := tm.SyncTeamMembers(ctx, teamName, teamCfg.add, teamCfg.remove); err != nil {
+						fmt.Fprintf(os.Stderr, "[ERROR]:  Unable to sync team %s: %s\n", teamName, err)
+						continue
+					}
 				}
 				teamMembers := map[string]struct{}{}
 				for _, member := range localCfg.Teams[teamName].Members {
@@ -350,10 +348,12 @@ func (tm *Manager) SyncTeams(ctx context.Context, localCfg *config.Config, force
 				NotifyTeam:            githubv4.Boolean(cra.NotifyTeam),
 				TeamMemberCount:       githubv4.Int(cra.TeamMemberCount),
 			}
-			err := tm.SyncTeamReviewAssignment(ctx, teamName, storedTeam.ID, input)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR]: Unable to sync team excluded members %s: %s\n", teamName, err)
-				continue
+			fmt.Printf("Excluding members from team: %s\n", teamName)
+			if !dryRun {
+				err := tm.SyncTeamReviewAssignment(ctx, storedTeam.ID, input)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "[ERROR]: Unable to sync team excluded members %s: %s\n", teamName, err)
+				}
 			}
 		}
 	}
