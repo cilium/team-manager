@@ -23,7 +23,7 @@ func init() {
 
 var addTeamsCmd = &cobra.Command{
 	Use:   "add-team TEAM [TEAM ...]",
-	Short: "Add team to local configuration",
+	Short: "Add team to local configuration by their slug name",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ghClient, err := github.NewClientFromEnv()
@@ -71,13 +71,15 @@ var setTeamsUsersCmd = &cobra.Command{
 
 func addTeamsToConfig(ctx context.Context, addTeams []string, cfg *config.Config, ghClient *gh.Client) error {
 	for _, addTeam := range addTeams {
-		u, _, err := ghClient.Users.Get(ctx, addTeam)
+		t, _, err := ghClient.Teams.GetTeamBySlug(ctx, orgName, addTeam)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get GitHub team: %w", err)
 		}
-		cfg.Members[u.GetLogin()] = config.User{
-			ID:   u.GetNodeID(),
-			Name: u.GetName(),
+		if _, ok := cfg.Teams[t.GetName()]; ok {
+			return fmt.Errorf("team %q already exists", t.GetName())
+		}
+		cfg.Teams[t.GetName()] = config.TeamConfig{
+			ID: t.GetNodeID(),
 		}
 	}
 
