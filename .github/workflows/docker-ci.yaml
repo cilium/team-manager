@@ -20,7 +20,7 @@ jobs:
         run: |
           tag="${{ github.sha }}"
 
-          if [[ ${{ github.event.pull_request.head.sha }} != "" ]]; then
+          if [[ "${{ github.event.pull_request.head.sha }}" != "" ]]; then
             echo "Detected PR SHA ${{ github.event.pull_request.head.sha }}"
             tag="${{ github.event.pull_request.head.sha }}"
           fi
