@@ -44,7 +44,7 @@ Creating configuration file "cilium-team-assignments.yaml"...
 
 ```yaml
 organization: cilium
-slackWorkspace: isovalent.slack.com
+slackWorkspace: cilium.slack.com
 # List of members that belong to the organization, ordered by GitHub login (username).
 members:
   aanm:
