@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -222,13 +223,13 @@ type teamMember struct {
 func (tm *Manager) SyncTeamMembers(ctx context.Context, teamName string, add, remove []string) error {
 	for _, user := range add {
 		fmt.Printf("Adding member %s to team %s\n", user, teamName)
-		if _, _, err := tm.ghClient.Teams.AddTeamMembershipBySlug(ctx, tm.owner, teamName, user, &gh.TeamAddTeamMembershipOptions{Role: "member"}); err != nil {
+		if _, _, err := tm.ghClient.Teams.AddTeamMembershipBySlug(ctx, tm.owner, slug(teamName), user, &gh.TeamAddTeamMembershipOptions{Role: "member"}); err != nil {
 			return err
 		}
 	}
 	for _, user := range remove {
 		fmt.Printf("Removing member %s from team %s\n", user, teamName)
-		if _, err := tm.ghClient.Teams.RemoveTeamMembershipBySlug(ctx, tm.owner, teamName, user); err != nil {
+		if _, err := tm.ghClient.Teams.RemoveTeamMembershipBySlug(ctx, tm.owner, slug(teamName), user); err != nil {
 			return err
 		}
 	}
@@ -387,4 +388,18 @@ func getExcludedUsers(teamName string, members map[string]config.User, excTeamMe
 		memberIDs = append(memberIDs, memberID)
 	}
 	return memberIDs
+}
+
+// slug returns the slug version of the team name. This simply replaces all
+// characters that are not in the following regex `[^a-z0-9]+` with a `-`.
+// It's a simplistic versions of the official's GitHub slug transformation since
+// GitHub changes accents characters as well, for example 'ä' to 'a'.
+func slug(s string) string {
+	s = strings.ToLower(s)
+
+	re := regexp.MustCompile("[^a-z0-9]+")
+	s = re.ReplaceAllString(s, "-")
+
+	s = strings.Trim(s, "-")
+	return s
 }
