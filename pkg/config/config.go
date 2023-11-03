@@ -14,6 +14,8 @@
 
 package config
 
+type TeamOrMemberName string
+
 type Config struct {
 	// Organization being managed.
 	Organization string `json:"organization,omitempty" yaml:"organization,omitempty"`
@@ -25,22 +27,106 @@ type Config struct {
 	Members map[string]User `json:"members,omitempty" yaml:"members,omitempty"`
 
 	// Teams maps the github team name to a TeamConfig.
-	Teams map[string]TeamConfig `json:"teams,omitempty" yaml:"teams,omitempty"`
+	Teams map[string]*TeamConfig `json:"teams,omitempty" yaml:"teams,omitempty"`
 
 	// Slice of github logins that should be excluded from all team reviews
 	// assignments.
 	ExcludeCRAFromAllTeams []string `json:"excludeCodeReviewAssignmentFromAllTeams" yaml:"excludeCodeReviewAssignmentFromAllTeams"`
+
+	// AllTeams is an index of all teams in the organization
+	// maps the team name to its config. GitHub doesn't allow duplicated team
+	// names, so we can do safely do this.
+	AllTeams map[string]*TeamConfig `json:"-" yaml:"-"`
+}
+
+func (c *Config) IndexTeams() {
+	allTeams := map[string]*TeamConfig{}
+	getAllTeams(c.Teams, allTeams)
+	c.AllTeams = allTeams
+}
+
+func getAllTeams(teams, allTeams map[string]*TeamConfig) {
+	for teamName, team := range teams {
+		allTeams[teamName] = team
+		getAllTeams(team.Children, allTeams)
+	}
+}
+
+func (c *Config) UpdateTeamIDsFrom(newCfg *Config) {
+	updateTeamIDsFrom(c.AllTeams, newCfg.AllTeams)
+}
+
+func updateTeamIDsFrom(old, newTeams map[string]*TeamConfig) {
+	for newTeamName, newTeam := range newTeams {
+		oldTeam := old[newTeamName]
+		if oldTeam != nil && oldTeam.ID != newTeam.ID {
+			oldTeam.ID = newTeam.ID
+			oldTeam.RESTID = newTeam.RESTID
+		}
+	}
+}
+
+type TeamPrivacy githubv4.TeamPrivacy
+
+func (tp TeamPrivacy) RestPrivacy() *string {
+	switch githubv4.TeamPrivacy(strings.ToUpper(string(tp))) {
+	case githubv4.TeamPrivacySecret:
+		return func() *string { a := "secret"; return &a }()
+	case githubv4.TeamPrivacyVisible:
+		return func() *string { a := "closed"; return &a }()
+	}
+	return nil
+}
+
+func ParsePrivacyFromREST(restPrivacy string) TeamPrivacy {
+	switch restPrivacy {
+	case "secret":
+		return TeamPrivacy(githubv4.TeamPrivacySecret)
+	default:
+		return TeamPrivacy(githubv4.TeamPrivacyVisible)
+	}
 }
 
 type TeamConfig struct {
 	// ID is the GitHub ID of this team.
 	ID string `json:"id" yaml:"id"`
 
+	RESTID int64 `json:"restID" yaml:"restID"`
+
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+
 	// Members is a list of users that belong to this team.
 	Members []string `json:"members,omitempty" yaml:"members,omitempty"`
 
 	// CodeReviewAssignment is the code review assignment configuration of this team
 	CodeReviewAssignment CodeReviewAssignment `json:"codeReviewAssignment,omitempty" yaml:"codeReviewAssignment,omitempty"`
+
+	Privacy TeamPrivacy `json:"privacy,omitempty" yaml:"privacy,omitempty"`
+
+	ParentTeam TeamOrMemberName `json:"-" yaml:"-"`
+
+	Children map[string]*TeamConfig `json:"children,omitempty" yaml:"children,omitempty"`
+}
+
+func (c *TeamConfig) IsAncestorOf(child string) bool {
+	for name, children := range c.Children {
+		if name == child {
+			return true
+		}
+		if children.IsAncestorOf(child) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *TeamConfig) Descendents() []string {
+	var descendents []string
+	for name, children := range c.Children {
+		descendents = append(descendents, name)
+		descendents = append(descendents, children.Descendents()...)
+	}
+	return descendents
 }
 
 type User struct {
