@@ -75,6 +75,9 @@ type Config struct {
 	// Members maps the github login to a User.
 	Members map[string]User `json:"members,omitempty" yaml:"members,omitempty"`
 
+	// Outside collaborators maps the github login to a User.
+	Collaborators map[string]OutsideCollaborator `json:"outsideCollaborators,omitempty" yaml:"outsideCollaborators,omitempty"`
+
 	// Teams maps the github team name to a TeamConfig.
 	Teams map[string]*TeamConfig `json:"teams,omitempty" yaml:"teams,omitempty"`
 
@@ -188,6 +191,11 @@ type User struct {
 	// SlackID is the Slack user ID of the person behind this GH account.
 	// The user ID can be found in the UI, under the profile of each user, under "More".
 	SlackID string `json:"slackID,omitempty" yaml:"slackID,omitempty"`
+}
+
+type OutsideCollaborator struct {
+	// Reason contains the reason why they are an outside collaborator.
+	Reason string `json:"reason" yaml:"reason"`
 }
 
 type ExcludedMember struct {
