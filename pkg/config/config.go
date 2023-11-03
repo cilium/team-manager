@@ -14,7 +14,52 @@
 
 package config
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/shurcooL/githubv4"
+)
+
+type RepositoryName string
+
 type TeamOrMemberName string
+
+type Permission githubv4.RepositoryPermission
+
+func (p Permission) IsUser() bool {
+	return strings.HasPrefix(string(p), "USER-")
+}
+
+func (p *Permission) SetUser() {
+	if p != nil {
+		if !p.IsUser() {
+			*p = Permission(fmt.Sprintf("USER-%s", string(*p)))
+		}
+	}
+}
+
+func (p Permission) GetPermission() string {
+	return strings.TrimPrefix(string(p), "USER-")
+}
+
+func GraphQLPerm2RestAPIPerm(perm string) string {
+	switch perm {
+	case "READ":
+		return "pull"
+	case "TRIAGE":
+		return "triage"
+	case "WRITE":
+		return "push"
+	case "MAINTAIN":
+		return "maintain"
+	case "ADMIN":
+		return "admin"
+	}
+	return ""
+}
+
+type Repository map[Permission][]TeamOrMemberName
 
 type Config struct {
 	// Organization being managed.
@@ -22,6 +67,10 @@ type Config struct {
 
 	// URL of the Slack workspace to which the Slack user IDs belong.
 	SlackWorkspace string `json:"slackWorkspace,omitempty" yaml:"slackWorkspace,omitempty"`
+
+	// Repositories contains the list of repositories in the organization and
+	// its respective team permissions.
+	Repositories map[RepositoryName]Repository `json:"repositories,omitempty" yaml:"repositories,omitempty"`
 
 	// Members maps the github login to a User.
 	Members map[string]User `json:"members,omitempty" yaml:"members,omitempty"`
