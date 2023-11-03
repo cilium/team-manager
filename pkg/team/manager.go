@@ -37,14 +37,24 @@ type Manager struct {
 	owner       string
 	ghClient    *gh.Client
 	gqlGHClient *githubv4.Client
+
+	// AuthenticatedUser is the user authenticated with GH.
+	AuthenticatedUser string
 }
 
-func NewManager(ghClient *gh.Client, gqlGHClient *githubv4.Client, owner string) *Manager {
-	return &Manager{
-		owner:       owner,
-		ghClient:    ghClient,
-		gqlGHClient: gqlGHClient,
+func NewManager(ghClient *gh.Client, gqlGHClient *githubv4.Client, owner string) (*Manager, error) {
+	// Get the authenticated user's information
+	user, _, err := ghClient.Users.Get(context.Background(), "")
+	if err != nil {
+		return nil, fmt.Errorf("Error getting user: %v\n", err)
 	}
+
+	return &Manager{
+		owner:             owner,
+		ghClient:          ghClient,
+		gqlGHClient:       gqlGHClient,
+		AuthenticatedUser: user.GetLogin(),
+	}, nil
 }
 
 // GetCurrentConfig returns a *config.Config by querying the organization teams.

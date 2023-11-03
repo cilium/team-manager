@@ -34,7 +34,10 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("failed to create github graphql client: %w", err)
 		}
 
-		tm := team.NewManager(ghClient, ghGraphQLClient, orgName)
+		tm, err := team.NewManager(ghClient, ghGraphQLClient, orgName)
+		if err != nil {
+			return fmt.Errorf("unable to initialize manager %w", err)
+		}
 
 		if _, err := persistence.LoadState(configFilename); err == nil {
 			fmt.Printf("Configuration file %q already exists\n", configFilename)
