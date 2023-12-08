@@ -14,13 +14,17 @@
 
 package config
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/shurcooL/githubv4"
+)
 
 // SanityCheck checks if the all team members belong to the organization.
 func SanityCheck(cfg *Config) error {
 	// Check if all users in the CodeReviewAssignment belong to the list of
 	// members
-	for teamName, team := range cfg.Teams {
+	for teamName, team := range cfg.AllTeams {
 		for _, member := range team.Members {
 			if _, ok := cfg.Members[member]; !ok {
 				return fmt.Errorf("member %q from team %q does not belong to organization", member, teamName)
@@ -30,6 +34,10 @@ func SanityCheck(cfg *Config) error {
 			if _, ok := cfg.Members[xMember.Login]; !ok {
 				return fmt.Errorf("member %q from code review assignment of team %q does not belong to organization", xMember.Login, teamName)
 			}
+		}
+
+		if team.ParentTeam != "" && githubv4.TeamPrivacy(team.Privacy) == githubv4.TeamPrivacySecret {
+			return fmt.Errorf("error in team %q: child teams can't be secret", teamName)
 		}
 	}
 	for _, xMember := range cfg.ExcludeCRAFromAllTeams {

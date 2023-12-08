@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cilium/team-manager/pkg/slices"
 	"github.com/shurcooL/githubv4"
 )
 
@@ -106,6 +107,62 @@ func getAllTeams(teams, allTeams map[string]*TeamConfig) {
 
 func (c *Config) UpdateTeamIDsFrom(newCfg *Config) {
 	updateTeamIDsFrom(c.AllTeams, newCfg.AllTeams)
+}
+
+func (c *Config) Merge(other *Config) (*Config, error) {
+	// Keep the code review assignment since we can't fetch this information
+	// from GitHub.
+	other.ExcludeCRAFromAllTeams = c.ExcludeCRAFromAllTeams
+	for _, login := range other.ExcludeCRAFromAllTeams {
+		if _, ok := c.Members[login]; !ok {
+			slices.Remove(other.ExcludeCRAFromAllTeams, login)
+		}
+	}
+
+	// Keep the code review assignment since we can't fetch this information
+	// from GitHub.
+	for otherTeamName, otherTeam := range other.AllTeams {
+		team, ok := c.AllTeams[otherTeamName]
+		if !ok {
+			continue
+		}
+		if !otherTeam.CodeReviewAssignment.Enabled {
+			continue
+		}
+		otherTeam.CodeReviewAssignment.ExcludedMembers = nil
+
+		for _, excludedMember := range team.CodeReviewAssignment.ExcludedMembers {
+			for _, member := range otherTeam.Members {
+				if member == excludedMember.Login {
+					otherTeam.CodeReviewAssignment.ExcludedMembers = append(
+						otherTeam.CodeReviewAssignment.ExcludedMembers, excludedMember)
+					break
+				}
+			}
+		}
+	}
+
+	// Keep the reason why collaborators have been added.
+	for login, oc := range c.Collaborators {
+		other.Collaborators[login] = oc
+	}
+
+	// Only update the members' name if the local version is empty.
+	for login, member := range c.Members {
+		otherMember, ok := other.Members[login]
+		if !ok {
+			continue
+		}
+		if member.Name != "" {
+			otherMember.Name = member.Name
+		}
+		if member.SlackID != "" {
+			otherMember.SlackID = member.SlackID
+		}
+		other.Members[login] = otherMember
+	}
+
+	return other, nil
 }
 
 func updateTeamIDsFrom(old, newTeams map[string]*TeamConfig) {
@@ -232,3 +289,13 @@ const (
 	TeamReviewAssignmentAlgorithmLoadBalance TeamReviewAssignmentAlgorithm = "LOAD_BALANCE"
 	TeamReviewAssignmentAlgorithmRoundRobin  TeamReviewAssignmentAlgorithm = "ROUND_ROBIN"
 )
+
+func RemoveExcludedMember(slice []ExcludedMember, elementToRemove string) []ExcludedMember {
+	for i, element := range slice {
+		if element.Login == elementToRemove {
+			slice[i] = slice[len(slice)-1]
+			return slice[:len(slice)-1]
+		}
+	}
+	return slice
+}

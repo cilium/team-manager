@@ -75,12 +75,40 @@ func addTeamsToConfig(ctx context.Context, addTeams []string, cfg *config.Config
 		if err != nil {
 			return fmt.Errorf("failed to get GitHub team: %w", err)
 		}
-		if _, ok := cfg.Teams[t.GetName()]; ok {
+		if _, ok := cfg.AllTeams[t.GetName()]; ok {
 			return fmt.Errorf("team %q already exists", t.GetName())
 		}
-		cfg.Teams[t.GetName()] = config.TeamConfig{
-			ID: t.GetNodeID(),
+		team := &config.TeamConfig{
+			ID:          t.GetNodeID(),
+			RESTID:      t.GetID(),
+			Description: t.GetDescription(),
+			Privacy:     config.ParsePrivacyFromREST(t.GetPrivacy()),
 		}
+		if t.GetParent() != nil {
+			team.ParentTeam = config.TeamOrMemberName(t.GetParent().GetName())
+		}
+
+		page := 0
+		for {
+			members, resp, err := ghClient.Teams.ListTeamMembersBySlug(ctx, orgName, addTeam, &gh.TeamListTeamMembersOptions{
+				ListOptions: gh.ListOptions{
+					Page:    page,
+					PerPage: 100,
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("failed to get members of team: %w", err)
+			}
+			for _, member := range members {
+				team.Members = append(team.Members, member.GetLogin())
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			page = resp.NextPage
+		}
+		cfg.Teams[t.GetName()] = team
+		cfg.AllTeams[t.GetName()] = team
 	}
 
 	return nil
@@ -91,18 +119,18 @@ func setTeamMembers(team string, users []string, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("unable to find users: %w", err)
 	}
-	teamConfig, ok := cfg.Teams[team]
+	teamConfig, ok := cfg.AllTeams[team]
 	if !ok {
 		return fmt.Errorf("unknown team %q", team)
 	}
 	teamConfig.Members = stringset.New(members...).Elements()
-	cfg.Teams[team] = teamConfig
+	cfg.AllTeams[team] = teamConfig
 
 	return nil
 }
 
 func addTeamMembers(team string, users []string, cfg *config.Config) error {
-	teamConfig, ok := cfg.Teams[team]
+	teamConfig, ok := cfg.AllTeams[team]
 	if !ok {
 		return fmt.Errorf("unknown team %q", team)
 	}

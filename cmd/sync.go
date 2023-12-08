@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
@@ -13,21 +14,13 @@ import (
 	"github.com/cilium/team-manager/pkg/team"
 )
 
-var (
-	dryRun bool
-	force  bool
-)
-
 func init() {
-	rootCmd.AddCommand(pushCmd)
-
-	pushCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run the steps without performing any write operation to GitHub")
-	pushCmd.Flags().BoolVar(&force, "force", false, "Force local changes into GitHub without asking for configuration")
+	rootCmd.AddCommand(syncCmd)
 }
 
-var pushCmd = &cobra.Command{
-	Use:   "push",
-	Short: "Update team assignments in GitHub from local files",
+var syncCmd = &cobra.Command{
+	Use:   "sync",
+	Short: "Merges the configuration from GitHub into the local configuration",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfg, err := persistence.LoadState(configFilename)
@@ -48,13 +41,30 @@ var pushCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to create github graphql client: %w", err)
 		}
+
+		if (orgName != "" && orgName != cfg.Organization) ||
+			(cfg.Organization != "" && orgName != cfg.Organization) {
+			return fmt.Errorf("Organization name different than the one in the configfile. %q != %q\n", orgName, cfg.Organization)
+		}
+
 		tm, err := team.NewManager(ghClient, ghGraphQLClient, orgName)
 		if err != nil {
 			return fmt.Errorf("unable to initialize manager %w", err)
 		}
 
-		if _, err = tm.SyncTeams(cmd.Context(), cfg, force, dryRun); err != nil {
+		newCfg, err := tm.PullConfiguration(cmd.Context())
+		if err != nil {
 			return fmt.Errorf("failed to sync teams to GitHub: %w", err)
+		}
+
+		mergedCfg, err := cfg.Merge(newCfg)
+		if err != nil {
+			return fmt.Errorf("unable to merge upstream configuration to local config: %w", err)
+		}
+
+		err = persistence.StoreState(configFilename, mergedCfg)
+		if err != nil {
+			return fmt.Errorf("failed to store local state: %w", err)
 		}
 
 		return nil

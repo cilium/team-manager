@@ -17,20 +17,17 @@ package team
 import (
 	"context"
 	"fmt"
-	"os"
-	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 
 	gh "github.com/google/go-github/v33/github"
+	"github.com/schollz/progressbar/v3"
 	"github.com/shurcooL/githubv4"
+	"github.com/shurcooL/graphql"
 
 	"github.com/cilium/team-manager/pkg/comparator"
-	"github.com/cilium/team-manager/pkg/config"
-	"github.com/cilium/team-manager/pkg/github"
+	config "github.com/cilium/team-manager/pkg/config"
 	"github.com/cilium/team-manager/pkg/slices"
-	"github.com/cilium/team-manager/pkg/terminal"
 )
 
 type Manager struct {
@@ -57,34 +54,244 @@ func NewManager(ghClient *gh.Client, gqlGHClient *githubv4.Client, owner string)
 	}, nil
 }
 
-// GetCurrentConfig returns a *config.Config by querying the organization teams.
+// PullConfiguration returns a *config.Config by querying the organization teams.
 // It will not populate the excludedMembers from CodeReviewAssignments as GH
 // does not provide an API of such field.
-func (tm *Manager) GetCurrentConfig(ctx context.Context) (*config.Config, error) {
+func (tm *Manager) PullConfiguration(ctx context.Context) (*config.Config, error) {
 	c := &config.Config{
 		Organization: tm.owner,
-		Teams:        map[string]config.TeamConfig{},
+		Teams:        map[string]*config.TeamConfig{},
+		Repositories: map[config.RepositoryName]config.Repository{},
 		Members:      map[string]config.User{},
+		AllTeams:     map[string]*config.TeamConfig{},
 	}
 
+	// Get all teams
+	err := tm.fetchTeams(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all members
+	err = tm.fetchMembers(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all repositories
+	err = tm.fetchRepositories(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+
+	err = config.SanityCheck(c)
+	if err != nil {
+		return nil, err
+	}
+
+	config.SortConfig(c)
+
+	return c, nil
+}
+func (tm *Manager) fetchRepositories(ctx context.Context, c *config.Config) error {
+	variables := map[string]interface{}{
+		"collaboratorAffiliation": githubv4.CollaboratorAffiliationDirect,
+	}
+
+	resultRepos, err := tm.queryOrgRepos(ctx, variables)
+	if err != nil {
+		return fmt.Errorf("failed to queryOrgRepos github api: %w", err)
+	}
+	bar := progressbar.Default(int64(resultRepos.Organization.Repositories.TotalCount), "Fetching repositories")
+	defer bar.Finish()
+
+	requeryOrgs := false
+	for {
+		if requeryOrgs {
+			resultRepos, err = tm.queryOrgRepos(ctx, variables)
+			if err != nil {
+				return fmt.Errorf("failed to requery teams: %w", err)
+			}
+			requeryOrgs = false
+		}
+		for _, repo := range resultRepos.Organization.Repositories.Nodes {
+			repoName := config.RepositoryName(repo.Name)
+			cfgRepo, ok := c.Repositories[repoName]
+			if !ok {
+				// fmt.Printf("Repository %q does not have any team associated with it\n", repoName)
+				cfgRepo = config.Repository{}
+			}
+
+			requeryMembers := false
+			for {
+				// Requery of repositories shouldn't override the teams result
+				innerResult := resultRepos
+				if requeryMembers {
+					innerResult, err = tm.queryOrgRepos(ctx, variables)
+					if err != nil {
+						return fmt.Errorf("failed to requery team members: %w", err)
+					}
+					requeryMembers = false
+
+					// Find repo in result - especially important after requerying
+					repo, err = innerResult.Organization.Repositories.WithName(repo.Name)
+					if err != nil {
+						return err
+					}
+				}
+
+				for _, user := range repo.Collaborators.Edges {
+					userPermission := config.Permission("<nil>")
+					if user.Permission != nil {
+						userPermission = config.Permission(*user.Permission)
+						userPermission.SetUser()
+					}
+					cfgRepo[userPermission] = append(cfgRepo[userPermission], config.TeamOrMemberName(user.Node.Login))
+				}
+				if !repo.Collaborators.PageInfo.HasNextPage {
+					break
+				}
+				requeryMembers = true
+				variables["collaboratorsCursor"] = githubv4.NewString(repo.Collaborators.PageInfo.EndCursor)
+			}
+			// Clear the collaboratorsCursor as we are only using it when querying over collaborators
+			variables["collaboratorsCursor"] = (*githubv4.String)(nil)
+
+			c.Repositories[repoName] = cfgRepo
+			bar.Add(1)
+		}
+		if !resultRepos.Organization.Repositories.PageInfo.HasNextPage {
+			return nil
+		}
+		requeryOrgs = true
+		variables["repositoriesWithRoleCursor"] = githubv4.NewString(resultRepos.Organization.Repositories.PageInfo.EndCursor)
+	}
+}
+
+func (tm *Manager) fetchMembers(ctx context.Context, c *config.Config) error {
 	variables := map[string]interface{}{}
 
-	result, err := tm.query(ctx, variables)
+	resultMembers, err := tm.queryOrgMembers(ctx, variables)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query github api: %w", err)
+		return fmt.Errorf("failed to queryOrgMembers github api: %w", err)
 	}
 
-	requeryTeams := false
+	bar := progressbar.Default(int64(resultMembers.Organization.Members.TotalCount), "Fetching members")
+	defer bar.Finish()
+
+	requeryMembers := false
 	for {
-		if requeryTeams {
-			result, err = tm.query(ctx, variables)
+		if requeryMembers {
+			resultMembers, err = tm.queryOrgMembers(ctx, variables)
 			if err != nil {
-				return nil, fmt.Errorf("failed to requery teams: %w", err)
+				return fmt.Errorf("failed to requery teams: %w", err)
 			}
-			requeryTeams = false
+			requeryMembers = false
+		}
+		for _, member := range resultMembers.Organization.Members.Nodes {
+			strLogin := string(member.Login)
+			c.Members[strLogin] = config.User{
+				ID:   fmt.Sprintf("%v", member.ID),
+				Name: string(member.Name),
+			}
+			bar.Add(1)
+		}
+		if !resultMembers.Organization.Members.PageInfo.HasNextPage {
+			return nil
+		}
+		requeryMembers = true
+		variables["membersWithRoleCursor"] = githubv4.NewString(resultMembers.Organization.Members.PageInfo.EndCursor)
+	}
+}
+
+func (tm *Manager) fetchTeams(ctx context.Context, c *config.Config) error {
+	variables := map[string]interface{}{}
+
+	resultTeams, err := tm.queryTeamsRepositories(ctx, variables)
+	if err != nil {
+		return fmt.Errorf("failed to queryTeamsRepositories github api: %w", err)
+	}
+
+	bar := progressbar.Default(int64(resultTeams.Organization.Teams.TotalCount), "Fetching teams")
+	defer bar.Finish()
+	requeryTeamsRepositories := false
+	for {
+		if requeryTeamsRepositories {
+			resultTeams, err = tm.queryTeamsRepositories(ctx, variables)
+			if err != nil {
+				return fmt.Errorf("failed to requery teams: %w", err)
+			}
+			requeryTeamsRepositories = false
 		}
 
-		for _, t := range result.Organization.Teams.Nodes {
+		for _, t := range resultTeams.Organization.Teams.Nodes {
+			requeryRepositories := false
+			for {
+				// Requery of repositories shouldn't override the teams result
+				innerResult := resultTeams
+				if requeryRepositories {
+					innerResult, err = tm.queryTeamsRepositories(ctx, variables)
+					if err != nil {
+						return fmt.Errorf("failed to requery team members: %w", err)
+					}
+					requeryRepositories = false
+
+					// Find team in result - especially important after requerying
+					t, err = innerResult.Organization.Teams.WithID(t.ID)
+					if err != nil {
+						return err
+					}
+				}
+				for _, repository := range t.Repositories.Edges {
+					repositoryName := config.RepositoryName(repository.Node.Name)
+					if repositoryName == "" {
+						continue
+					}
+					repoCfg, ok := c.Repositories[repositoryName]
+					if !ok {
+						repoCfg = config.Repository{}
+					}
+					if repository.Permission != nil {
+						repoPermission := config.Permission(*repository.Permission)
+						repoCfg[repoPermission] = append(repoCfg[repoPermission], config.TeamOrMemberName(t.Name))
+					}
+					c.Repositories[repositoryName] = repoCfg
+				}
+				if !t.Repositories.PageInfo.HasNextPage {
+					break
+				}
+				requeryRepositories = true
+				variables["repositoriesCursor"] = githubv4.NewString(t.Repositories.PageInfo.EndCursor)
+			}
+			bar.Add(1)
+			// Clear the repositoriesCursor as we are only using it when querying over repositories
+			variables["repositoriesCursor"] = (*githubv4.String)(nil)
+		}
+		if !resultTeams.Organization.Teams.PageInfo.HasNextPage {
+			break
+		}
+		requeryTeamsRepositories = true
+		variables["teamsCursor"] = githubv4.NewString(resultTeams.Organization.Teams.PageInfo.EndCursor)
+	}
+
+	variables = map[string]interface{}{}
+
+	resultMembers, err := tm.queryTeamsMembers(ctx, variables)
+	if err != nil {
+		return fmt.Errorf("failed to queryTeamsRepositories github api: %w", err)
+	}
+
+	requeryTeamsMembers := false
+	for {
+		if requeryTeamsMembers {
+			resultMembers, err = tm.queryTeamsMembers(ctx, variables)
+			if err != nil {
+				return fmt.Errorf("failed to requery teams: %w", err)
+			}
+			requeryTeamsMembers = false
+		}
+
+		for _, t := range resultMembers.Organization.Teams.Nodes {
 			strTeamName := string(t.Name)
 			teamCfg, ok := c.Teams[strTeamName]
 			if !ok {
@@ -97,8 +304,12 @@ func (tm *Manager) GetCurrentConfig(ctx context.Context) (*config.Config, error)
 						TeamMemberCount: int(t.ReviewRequestDelegationMemberCount),
 					}
 				}
-				teamCfg = config.TeamConfig{
+				teamCfg = &config.TeamConfig{
 					ID:                   fmt.Sprintf("%v", t.ID),
+					RESTID:               t.DatabaseId,
+					Description:          string(t.Description),
+					ParentTeam:           config.TeamOrMemberName(t.ParentTeam.Name),
+					Privacy:              config.TeamPrivacy(t.Privacy),
 					CodeReviewAssignment: cra,
 				}
 			}
@@ -106,310 +317,236 @@ func (tm *Manager) GetCurrentConfig(ctx context.Context) (*config.Config, error)
 			requeryMembers := false
 			for {
 				// Requery of members shouldn't override the teams result
-				innerResult := result
+				innerResult := resultMembers
 				if requeryMembers {
-					innerResult, err = tm.query(ctx, variables)
+					innerResult, err = tm.queryTeamsMembers(ctx, variables)
 					if err != nil {
-						return nil, fmt.Errorf("failed to requery team members: %w", err)
+						return fmt.Errorf("failed to requery team members: %w", err)
 					}
 					requeryMembers = false
+
+					// Find team in result - especially important after requerying
+					t, err = innerResult.Organization.Teams.WithID(t.ID)
+					if err != nil {
+						return err
+					}
 				}
-				// Find team in result - especially important after requerying
-				teamNode, err := innerResult.Organization.Teams.WithID(t.ID)
-				if err != nil {
-					return nil, err
-				}
-				for _, member := range teamNode.Members.Nodes {
+				for _, member := range t.Members.Nodes {
 					strLogin := string(member.Login)
 					teamCfg.Members = append(teamCfg.Members, strLogin)
-					c.Members[strLogin] = config.User{
-						ID:   fmt.Sprintf("%v", member.ID),
-						Name: string(member.Name),
-					}
 				}
 				sort.Strings(teamCfg.Members)
 				c.Teams[strTeamName] = teamCfg
-				if !teamNode.Members.PageInfo.HasNextPage {
+				if !t.Members.PageInfo.HasNextPage {
 					break
 				}
 				requeryMembers = true
-				variables["membersCursor"] = githubv4.NewString(teamNode.Members.PageInfo.EndCursor)
+				variables["membersCursor"] = githubv4.NewString(t.Members.PageInfo.EndCursor)
 			}
+			// Clear the membersCursor as we are only using it when querying over members
+			variables["membersCursor"] = (*githubv4.String)(nil)
+
 		}
-		if !result.Organization.Teams.PageInfo.HasNextPage {
-			break
+		if !resultMembers.Organization.Teams.PageInfo.HasNextPage {
+			return nil
 		}
-		requeryTeams = true
-		variables["teamsCursor"] = githubv4.NewString(result.Organization.Teams.PageInfo.EndCursor)
-		// Clear the membersCursor as we are only using it when querying over members
-		variables["membersCursor"] = (*githubv4.String)(nil)
+		requeryTeamsMembers = true
+		variables["teamsCursor"] = githubv4.NewString(resultMembers.Organization.Teams.PageInfo.EndCursor)
 	}
-	return c, nil
+
 }
 
-func (tm *Manager) query(ctx context.Context, additionalVariables map[string]interface{}) (queryResult, error) {
-	var q queryResult
-	variables := map[string]interface{}{
-		"repositoryOwner": githubv4.String(tm.owner),
-		"teamsCursor":     (*githubv4.String)(nil), // Null after argument to get first page.
-		"membersCursor":   (*githubv4.String)(nil), // Null after argument to get first page.
-	}
-
-	for k, v := range additionalVariables {
-		variables[k] = v
-	}
-
-	err := tm.gqlGHClient.Query(ctx, &q, variables)
+func (tm *Manager) PushConfiguration(ctx context.Context, localCfg *config.Config, force, dryRun, pushRepos, pushMembers, pushTeams bool) (*config.Config, error) {
+	// Fetch the configuration from upstream
+	upstreamCfg, err := tm.PullConfiguration(ctx)
 	if err != nil {
-		return queryResult{}, err
+		return nil, fmt.Errorf("unable to get upstream config: %w", err)
 	}
 
-	return q, nil
-}
-
-//	{
-//	 organization(login: "cilium") {
-//	   teams(first: 100) {
-//	     nodes {
-//	       members(first: 100) {
-//	         nodes {
-//	           id
-//	           login
-//	         }
-//	       }
-//	     }
-//	   }
-//	 }
-//	}
-type queryResult struct {
-	Organization struct {
-		Teams Teams `graphql:"teams(first: 100, after: $teamsCursor)"`
-	} `graphql:"organization(login: $repositoryOwner)"`
-}
-
-type Teams struct {
-	Nodes    []team
-	PageInfo struct {
-		EndCursor   githubv4.String
-		HasNextPage githubv4.Boolean
-	}
-}
-
-func (t Teams) WithID(id githubv4.ID) (team, error) {
-	for _, n := range t.Nodes {
-		if n.ID == id {
-			return n, nil
-		}
-	}
-
-	return team{}, fmt.Errorf("team with id %q not found", id)
-}
-
-type team struct {
-	Members struct {
-		Nodes    []teamMember
-		PageInfo struct {
-			EndCursor   githubv4.String
-			HasNextPage githubv4.Boolean
-		}
-	} `graphql:"members(first: 100, after: $membersCursor)"`
-	ID                                 githubv4.ID
-	DatabaseID                         githubv4.Int
-	Name                               githubv4.String
-	ReviewRequestDelegationEnabled     githubv4.Boolean
-	ReviewRequestDelegationAlgorithm   githubv4.String
-	ReviewRequestDelegationMemberCount githubv4.Int
-	ReviewRequestDelegationNotifyTeam  githubv4.Boolean
-}
-
-type teamMember struct {
-	ID    githubv4.ID
-	Login githubv4.String
-	Name  githubv4.String
-}
-
-// SyncTeamMembers adds and removes the given login names into the given team
-// name.
-func (tm *Manager) SyncTeamMembers(ctx context.Context, teamName string, add, remove []string) error {
-	for _, user := range add {
-		fmt.Printf("Adding member %s to team %s\n", user, teamName)
-		if _, _, err := tm.ghClient.Teams.AddTeamMembershipBySlug(ctx, tm.owner, slug(teamName), user, &gh.TeamAddTeamMembershipOptions{Role: "member"}); err != nil {
-			return err
-		}
-	}
-	for _, user := range remove {
-		fmt.Printf("Removing member %s from team %s\n", user, teamName)
-		if _, err := tm.ghClient.Teams.RemoveTeamMembershipBySlug(ctx, tm.owner, slug(teamName), user); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// SyncTeamReviewAssignment updates the review assignment into GH for the given
-// team name with the given team ID.
-func (tm *Manager) SyncTeamReviewAssignment(ctx context.Context, teamID githubv4.ID, input github.UpdateTeamReviewAssignmentInput) error {
-	var m struct {
-		UpdateTeamReviewAssignment struct {
-			Team struct {
-				ID githubv4.ID
-			}
-		} `graphql:"updateTeamReviewAssignment(input: $input)"`
-	}
-	input.ID = teamID
-	return tm.gqlGHClient.Mutate(ctx, &m, input, nil)
-}
-
-func (tm *Manager) SyncTeams(ctx context.Context, localCfg *config.Config, force bool, dryRun bool) (*config.Config, error) {
-	upstreamCfg, err := tm.GetCurrentConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	type teamChange struct {
-		add, remove []string
-	}
-	teamChanges := map[string]teamChange{}
-
-	for localTeamName, localTeam := range localCfg.Teams {
-		// Since we can't get the list of excluded members from GH we have
-		// to back it up and re-added it again at the end of this for-loop.
-		backExcludedMembers := localTeam.CodeReviewAssignment.ExcludedMembers
-
-		localTeam.CodeReviewAssignment.ExcludedMembers = nil
-		if !reflect.DeepEqual(localTeam, upstreamCfg.Teams[localTeamName]) {
-			cmp := comparator.CompareWithNames(localTeam, upstreamCfg.Teams[localTeamName], "local", "remote")
-			fmt.Printf("Local config out of sync with upstream: %s\n", cmp)
-			toAdd := slices.NotIn(localTeam.Members, upstreamCfg.Teams[localTeamName].Members)
-			toDel := slices.NotIn(upstreamCfg.Teams[localTeamName].Members, localTeam.Members)
-			if len(toAdd) != 0 || len(toDel) != 0 {
-				teamChanges[localTeamName] = teamChange{
-					add:    toAdd,
-					remove: toDel,
-				}
-			}
-		}
-		localTeam.CodeReviewAssignment.ExcludedMembers = backExcludedMembers
-	}
-
-	if len(teamChanges) != 0 {
-		fmt.Printf("Going to submit the following changes:\n")
-		for teamName, teamCfg := range teamChanges {
-			fmt.Printf(" Team: %s\n", teamName)
-			fmt.Printf("    Adding members: %s\n", strings.Join(teamCfg.add, ", "))
-			fmt.Printf("  Removing members: %s\n", strings.Join(teamCfg.remove, ", "))
-		}
-		yes := force
-		if !force {
-			yes, err = terminal.AskForConfirmation("Continue?")
-			if err != nil {
-				return nil, err
-			}
-		}
-		if yes {
-			for teamName, teamCfg := range teamChanges {
-				if !dryRun {
-					if err := tm.SyncTeamMembers(ctx, teamName, teamCfg.add, teamCfg.remove); err != nil {
-						fmt.Fprintf(os.Stderr, "[ERROR]:  Unable to sync team %s: %s\n", teamName, err)
-						continue
-					}
-				}
-				teamMembers := map[string]struct{}{}
-				for _, member := range localCfg.Teams[teamName].Members {
-					teamMembers[member] = struct{}{}
-				}
-				for _, rmMember := range teamCfg.remove {
-					delete(teamMembers, rmMember)
-				}
-				for _, addMember := range teamCfg.add {
-					teamMembers[addMember] = struct{}{}
-				}
-				team := localCfg.Teams[teamName]
-				team.Members = make([]string, 0, len(teamMembers))
-				for teamMember := range teamMembers {
-					team.Members = append(team.Members, teamMember)
-				}
-				localCfg.Teams[teamName] = team
-			}
-		}
-	}
-
-	yes := force
-	if !force {
-		yes, err = terminal.AskForConfirmation("Do you want to update CodeReviewAssignments?")
+	if pushRepos {
+		// Check repository sync
+		err = CheckRepoSync(localCfg, upstreamCfg)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("configuration out of sync: %w", err)
 		}
 	}
-	if yes {
-		teamNames := make([]string, 0, len(localCfg.Teams))
-		for teamName := range localCfg.Teams {
-			teamNames = append(teamNames, teamName)
-		}
-		sort.Strings(teamNames)
-		for _, teamName := range teamNames {
-			storedTeam := localCfg.Teams[teamName]
-			cra := storedTeam.CodeReviewAssignment
-			usersIDs := getExcludedUsers(teamName, localCfg.Members, cra.ExcludedMembers, localCfg.ExcludeCRAFromAllTeams)
 
-			input := github.UpdateTeamReviewAssignmentInput{
-				Algorithm:             cra.Algorithm,
-				Enabled:               githubv4.Boolean(cra.Enabled),
-				ExcludedTeamMemberIDs: usersIDs,
-				NotifyTeam:            githubv4.Boolean(cra.NotifyTeam),
-				TeamMemberCount:       githubv4.Int(cra.TeamMemberCount),
-			}
-			fmt.Printf("Excluding members from team: %s\n", teamName)
-			if !dryRun {
-				err := tm.SyncTeamReviewAssignment(ctx, storedTeam.ID, input)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "[ERROR]: Unable to sync team excluded members %s: %s\n", teamName, err)
-				}
-			}
+	if pushMembers {
+		// Sync Members
+		err = tm.pushMembers(ctx, force, dryRun, localCfg, upstreamCfg)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get sync members: %w", err)
+		}
+	}
+
+	if pushTeams {
+		// Sync Teams
+		err = tm.pushTeams(ctx, force, dryRun, localCfg, upstreamCfg)
+		if err != nil {
+			return nil, fmt.Errorf("unable to sync teams: %w", err)
+		}
+
+		// Sync Teams parenting / description / privacy
+		err = tm.pushTeamsConfig(ctx, force, dryRun, localCfg, upstreamCfg)
+		if err != nil {
+			return nil, fmt.Errorf("unable to sync teams config: %w", err)
+		}
+
+		// Sync Team Membership
+		err = tm.pushTeamMembership(ctx, force, dryRun, localCfg, upstreamCfg)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get team membership: %w", err)
+		}
+
+		// Sync CodeReviewAssignments
+		err = tm.pushCodeReviewAssignments(ctx, localCfg, force, dryRun)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get sync code review assignment: %w", err)
+		}
+	}
+
+	if pushRepos {
+		// Sync Repos
+		err = tm.pushRepositories(ctx, force, dryRun, localCfg, upstreamCfg)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get sync repositories: %w", err)
 		}
 	}
 
 	return localCfg, nil
 }
 
-// getExcludedUsers returns a list of all users that should be excluded for the
-// given team.
-func getExcludedUsers(teamName string, members map[string]config.User, excTeamMembers []config.ExcludedMember, excAllTeams []string) []githubv4.ID {
-	m := make(map[githubv4.ID]struct{}, len(excTeamMembers)+len(excAllTeams))
-	for _, member := range excTeamMembers {
-		user, ok := members[member.Login]
-		if !ok {
-			fmt.Printf("[ERROR] user %q from team %s, not found in the list of team members in the organization\n", member.Login, teamName)
-			continue
-		}
-		m[user.ID] = struct{}{}
-	}
-	for _, member := range excAllTeams {
-		user, ok := members[member]
-		if !ok {
-			// Ignore if it doesn't belong to the team
-			continue
-		}
-		m[user.ID] = struct{}{}
+func CheckRepoSync(localCfg, upstreamCfg *config.Config) error {
+	type reposChange struct {
+		add, remove []string
 	}
 
-	memberIDs := make([]githubv4.ID, 0, len(m))
-	for memberID := range m {
-		memberIDs = append(memberIDs, memberID)
+	// Get a list of the repositories stored locally
+	var localRepositories, upstreamRepositories []string
+	for k := range localCfg.Repositories {
+		localRepositories = append(localRepositories, string(k))
 	}
-	return memberIDs
+	sort.Strings(localRepositories)
+
+	// Get a list of the repositories from upstream
+	for k := range upstreamCfg.Repositories {
+		upstreamRepositories = append(upstreamRepositories, string(k))
+	}
+	sort.Strings(upstreamRepositories)
+
+	// Check for changes from upstream
+	repositoriesChanges := reposChange{}
+
+	cmp := comparator.CompareWithNames(localRepositories, upstreamRepositories, "local", "remote")
+	toAdd := slices.NotIn(localRepositories, upstreamRepositories)
+	toDel := slices.NotIn(upstreamRepositories, localRepositories)
+	repositoriesChanges.add = toAdd
+	repositoriesChanges.remove = toDel
+
+	if len(repositoriesChanges.remove) != 0 || len(repositoriesChanges.add) != 0 {
+		fmt.Printf("Local repository config out of sync with upstream: %s\n", cmp)
+		for _, repo := range repositoriesChanges.remove {
+			localCfg.Repositories[config.RepositoryName(repo)] = upstreamCfg.Repositories[config.RepositoryName(repo)]
+		}
+		if len(repositoriesChanges.remove) != 0 {
+			fmt.Printf("[INFO] repositories added to local configuration: %s\n", strings.Join(repositoriesChanges.remove, ","))
+		}
+
+		for _, repo := range repositoriesChanges.add {
+			delete(localCfg.Repositories, config.RepositoryName(repo))
+		}
+		if len(repositoriesChanges.add) != 0 {
+			fmt.Printf("[INFO] repositories removed from local configuration: %s\n", strings.Join(repositoriesChanges.add, ","))
+		}
+	}
+
+	return nil
 }
 
-// slug returns the slug version of the team name. This simply replaces all
-// characters that are not in the following regex `[^a-z0-9]+` with a `-`.
-// It's a simplistic versions of the official's GitHub slug transformation since
-// GitHub changes accents characters as well, for example 'ä' to 'a'.
-func slug(s string) string {
-	s = strings.ToLower(s)
+func (tm *Manager) CheckUserStatus(ctx context.Context, localCfg *config.Config) error {
+	busyMembers := map[string]struct{}{}
+	for member := range localCfg.Members {
+		fmt.Printf("Checking status of %q\n", member)
+		status, err := tm.fetchMemberLimitedAvailability(ctx, member)
+		if err != nil {
+			return fmt.Errorf("unable to get limited availability status for member %q: %w", member, err)
+		}
+		if status {
+			busyMembers[member] = struct{}{}
+		}
+	}
+	excludedMembers := map[string]struct{}{}
+	for _, member := range localCfg.ExcludeCRAFromAllTeams {
+		excludedMembers[member] = struct{}{}
+	}
 
-	re := regexp.MustCompile("[^a-z0-9]+")
-	s = re.ReplaceAllString(s, "-")
+	for teamName, team := range localCfg.AllTeams {
+		excludedTeamMembers := map[string]struct{}{}
 
-	s = strings.Trim(s, "-")
-	return s
+		for _, xMember := range team.CodeReviewAssignment.ExcludedMembers {
+			excludedTeamMembers[xMember.Login] = struct{}{}
+		}
+
+		var unavailableMembers int
+		for _, member := range team.Members {
+			_, isBusy := busyMembers[member]
+			if isBusy {
+				unavailableMembers++
+				continue
+			}
+			_, isExcluded := excludedMembers[member]
+			if isExcluded {
+				unavailableMembers++
+				continue
+			}
+			_, isExcluded = excludedTeamMembers[member]
+			if isExcluded {
+				unavailableMembers++
+				continue
+			}
+		}
+
+		// Warn if there teams that have less than two people to review
+		if len(team.Members)-1 <= unavailableMembers {
+			if len(team.Members) <= 1 && unavailableMembers == 0 {
+				continue
+			}
+			if len(team.Members) == 2 && unavailableMembers <= 1 {
+				continue
+			}
+			fmt.Printf("Team %q with %d members doesn't have enough reviewers:\n", teamName, len(team.Members))
+			for _, member := range team.Members {
+				_, isBusy := busyMembers[member]
+				if isBusy {
+					fmt.Printf(" - %s - busy\n", member)
+					continue
+				}
+				_, isExcluded := excludedMembers[member]
+				if isExcluded {
+					fmt.Printf(" - %s - excluded\n", member)
+					continue
+				}
+				_, isExcluded = excludedTeamMembers[member]
+				if isExcluded {
+					fmt.Printf(" - %s - excluded\n", member)
+					continue
+				}
+				fmt.Printf(" - %s - ok\n", member)
+			}
+		}
+	}
+	return nil
+}
+
+func (tm *Manager) fetchMemberLimitedAvailability(ctx context.Context, login string) (bool, error) {
+	variables := map[string]interface{}{
+		"login": graphql.String(login),
+	}
+
+	resultMember, err := tm.queryOrgMemberLimitedAvailability(ctx, variables)
+	if err != nil {
+		return false, fmt.Errorf("failed to queryOrgMembers github api: %w", err)
+	}
+
+	return bool(resultMember.User.Status.IndicatesLimitedAvailability), nil
 }

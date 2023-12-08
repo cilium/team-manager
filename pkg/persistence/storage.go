@@ -50,5 +50,12 @@ func LoadState(file string) (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Index the teams into AllTeams for easy access.
+	storedConfig.IndexTeams()
+
+	// Set the parent names for all teams.
+	config.SetParentNames(storedConfig.AllTeams)
+
 	return &storedConfig, nil
 }

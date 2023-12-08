@@ -47,7 +47,7 @@ var initCmd = &cobra.Command{
 		}
 
 		fmt.Println("Retrieving configuration from organization...")
-		remoteCfg, err := tm.GetCurrentConfig(cmd.Context())
+		remoteCfg, err := tm.PullConfiguration(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("failed to read config from GitHub: %w", err)
 		}
