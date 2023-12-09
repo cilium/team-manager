@@ -8,13 +8,15 @@ jobs:
   sync:
     # if: github.repository == '<my-org>/<my-repo>'
     name: Team sync
-    runs-on: ubuntu-20.04
+    runs-on: latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: docker://quay.io/cilium/team-manager:v0.0.8
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: docker://quay.io/cilium/team-manager:v1.0.0
         name: Sync team
         with:
           entrypoint: team-manager
-          args: --force --config-filename ./team-assignments.yaml
+          # With --repositories=false --members=false, it will have the same
+          # behavior as <= v0.0.8.
+          args: push --force --repositories=false --members=false --config-filename ./team-assignments.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.ADMIN_ORG_TOKEN }}

@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	gh "github.com/google/go-github/v33/github"
+	gh "github.com/google/go-github/v57/github"
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"

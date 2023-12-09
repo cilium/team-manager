@@ -1,6 +1,16 @@
 organization: cilium
-slackWorkspace: cilium.slack.com
-# List of members that belong to the organization, ordered by GitHub login (username).
+repositories:
+  # Repository name
+  cilium:
+    # User-specific permissions. Always prefixed with 'USER'.
+    # Valid options: 'USER-ADMIN', 'USER-MAINTAIN', 'USER-WRITE', 'USER-TRIAGE', 'USER-READ'
+    USER-READ:
+    - ciliumbot
+    # Team-specific permissions.
+    # Valid options: 'ADMIN', 'MAINTAIN', 'WRITE', 'TRIAGE', 'READ'
+    WRITE:
+    - bpf
+    - sig-policy
 members:
   aanm:
     # User ID, retrieved from GitHub
@@ -15,35 +25,62 @@ members:
   joestringer:
     id: MDQ6VXNlcjEyNDMzMzY=
     name: Joe Stringer
-# List of teams that belong to the organization, ordered by team names.
+# The list of 'outsideCollaborators' is automatically derived from the list of users that don't
+# belong to the organization but have access to at least one of the repositories
+# of the organization.
+outsideCollaborators:
+  ciliumbot:
+    reason: "Only has access to some repositories"
+# List of teams that belong to the organization.
 teams:
-  bpf:
+  # Team Name
+  Cilium Teams:
     # team ID, retrieved from GitHub
-    id: MDQ6VGVhbTI1MTk3Nzk=
-    # List of members' logins that belong to this team.
-    members:
-    - aanm
-    - borkmann
-    - joestringer
-    # codeReviewAssignment
-    codeReviewAssignment:
-      # algorithm, currently can be LOAD_BALANCE or ROUND_ROBIN.
-      algorithm: LOAD_BALANCE
-      # set 'true' if codeReviewAssignment should be enabled.
-      enabled: true
-      # Notify the entire team of the PR if it is delegated.
-      notifyTeam: false
-      # List of members that should be excluded from receiving reviews, and an
-      # optional reason.
-      excludedMembers:
-        # GitHub login name (username).
-      - login: aanm
-        reason: Want to be part of team 'bpf' but will not be assigned to leave
-                reviews.
-      # The number of team members to assign.
-      teamMemberCount: 1
+    id: T_kwDOAUFEZs4Ah5D3
+    # team restID, retrieved from GitHub
+    restID: 8884471
+    # Team's description
+    description: Teams and sigs used for Cilium projects
+    # Team's privacy settings. Valid values: VISIBLE|SECRET
+    privacy: VISIBLE
+    # Teams that are children of this parent team
+    children:
+      # Team Name
+      ebpf:
+        # team ID, retrieved from GitHub
+        id: MDQ6VGVhbTQ5MjY2ODE=
+        # team restID, retrieved from GitHub
+        restID: 4926681
+        # Team's description
+        description: All code related with ebpf.
+        # List of members' logins that belong to this team.
+        members:
+        - aanm
+        - borkmann
+        - joestringer
+        codeReviewAssignment:
+          # algorithm, currently can be LOAD_BALANCE or ROUND_ROBIN.
+          algorithm: LOAD_BALANCE
+          # set 'true' if codeReviewAssignment should be enabled.
+          enabled: true
+          # Notify the entire team of the PR if it is delegated.
+          notifyTeam: false
+          # List of members that should be excluded from receiving reviews, and
+          # an optional reason.
+          excludedMembers:
+            # GitHub login name (username).
+          - login: aanm
+            reason: Want to be part of team 'bpf' but will not be assigned to leave
+                    reviews.
+          # The number of team members to assign.
+          teamMemberCount: 1
+        # Team's privacy settings. Valid values: VISIBLE|SECRET
+        privacy: VISIBLE
+  # Team Name
   policy:
     id: MDQ6VGVhbTI1MTk3ODY=
+    restID: 8884472
+    description: All control plane code related with Policy
     members:
     - aanm
     - joestringer
@@ -52,6 +89,7 @@ teams:
       enabled: true
       notifyTeam: true
       teamMemberCount: 1
+    privacy: SECRET
 # List of members that should be excluded from review assignments for the teams
 # that they belong. This list can exist for numerous reasons, person is
 # currently PTO or busy with other work.
