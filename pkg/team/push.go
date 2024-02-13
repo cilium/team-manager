@@ -505,6 +505,12 @@ func (tm *Manager) pushCodeReviewAssignments(ctx context.Context, localCfg *conf
 			ExcludedTeamMemberIDs: usersIDs,
 			NotifyTeam:            githubv4.Boolean(cra.NotifyTeam),
 			TeamMemberCount:       githubv4.Int(cra.TeamMemberCount),
+			IncludeChildTeamMembers: func() *githubv4.Boolean {
+				if cra.IncludeChildTeamMembers != nil {
+					return githubv4.NewBoolean(githubv4.Boolean(*cra.IncludeChildTeamMembers))
+				}
+				return nil
+			}(),
 		}
 		fmt.Printf("Excluding members from team: %s\n", teamName)
 		err := tm.pushCodeReviewAssignmentForTeam(ctx, storedTeam.ID, input)

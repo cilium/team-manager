@@ -281,6 +281,10 @@ type CodeReviewAssignment struct {
 	// TeamMemberCount specifies the number of team members that should be
 	// assigned to review.
 	TeamMemberCount int `json:"teamMemberCount,omitempty" yaml:"teamMemberCount,omitempty"`
+
+	// IncludeChildTeamMembers to include the members of any child teams when
+	// assigning requests. Optional.
+	IncludeChildTeamMembers *bool `json:"includeChildTeamMembers,omitempty" yaml:"includeChildTeamMembers,omitempty"`
 }
 
 type TeamReviewAssignmentAlgorithm string

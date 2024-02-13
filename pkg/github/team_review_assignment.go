@@ -29,6 +29,8 @@ type UpdateTeamReviewAssignmentInput struct {
 
 	ExcludedTeamMemberIDs []githubv4.ID `json:"excludedTeamMemberIds,omitempty"`
 
+	IncludeChildTeamMembers *githubv4.Boolean `json:"includeChildTeamMembers,omitempty"`
+
 	ID githubv4.ID `json:"id"`
 
 	NotifyTeam githubv4.Boolean `json:"notifyTeam"`
