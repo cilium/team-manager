@@ -20,7 +20,7 @@ import (
 	"sort"
 	"strings"
 
-	gh "github.com/google/go-github/v57/github"
+	gh "github.com/google/go-github/v59/github"
 	"github.com/schollz/progressbar/v3"
 	"github.com/shurcooL/githubv4"
 	"github.com/shurcooL/graphql"

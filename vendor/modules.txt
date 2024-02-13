@@ -1,9 +1,9 @@
 # github.com/golang/protobuf v1.5.3
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
-# github.com/google/go-github/v57 v57.0.0
+# github.com/google/go-github/v59 v59.0.0
 ## explicit; go 1.17
-github.com/google/go-github/v57/github
+github.com/google/go-github/v59/github
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
@@ -25,20 +25,20 @@ github.com/mitchellh/colorstring
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/rivo/uniseg v0.4.4
+# github.com/rivo/uniseg v0.4.7
 ## explicit; go 1.18
 github.com/rivo/uniseg
-# github.com/rogpeppe/go-internal v1.9.0
-## explicit; go 1.17
+# github.com/rogpeppe/go-internal v1.12.0
+## explicit; go 1.20
 github.com/rogpeppe/go-internal/fmtsort
 # github.com/schollz/progressbar/v3 v3.14.1
 ## explicit; go 1.13
 github.com/schollz/progressbar/v3
-# github.com/shurcooL/githubv4 v0.0.0-00010101000000-000000000000 => github.com/aanm/githubv4 v0.0.0-20210126140237-7e156a79723b
-## explicit
+# github.com/shurcooL/githubv4 v0.0.0-20240120211514-18a1ae0e79dc => github.com/aanm/githubv4 v0.0.0-20240213100002-d683ef4e8dad
+## explicit; go 1.19
 github.com/shurcooL/githubv4
-# github.com/shurcooL/graphql v0.0.0-00010101000000-000000000000 => github.com/aanm/graphql v0.0.0-20210126135448-cdc0856bcf8b
-## explicit
+# github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466 => github.com/aanm/graphql v0.0.0-20240213100714-ff80a8740826
+## explicit; go 1.19
 github.com/shurcooL/graphql
 github.com/shurcooL/graphql/ident
 github.com/shurcooL/graphql/internal/jsonutil
@@ -48,23 +48,19 @@ github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# golang.org/x/net v0.19.0
-## explicit; go 1.18
-golang.org/x/net/context
-golang.org/x/net/context/ctxhttp
-# golang.org/x/oauth2 v0.15.0
+# golang.org/x/oauth2 v0.17.0
 ## explicit; go 1.18
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sys v0.15.0
+# golang.org/x/sys v0.17.0
 ## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.15.0
+# golang.org/x/term v0.17.0
 ## explicit; go 1.18
 golang.org/x/term
-# google.golang.org/appengine v1.6.7
+# google.golang.org/appengine v1.6.8
 ## explicit; go 1.11
 google.golang.org/appengine/internal
 google.golang.org/appengine/internal/base
@@ -73,8 +69,8 @@ google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/protobuf v1.31.0
-## explicit; go 1.11
+# google.golang.org/protobuf v1.32.0
+## explicit; go 1.17
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
@@ -105,5 +101,5 @@ google.golang.org/protobuf/types/descriptorpb
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
-# github.com/shurcooL/githubv4 => github.com/aanm/githubv4 v0.0.0-20210126140237-7e156a79723b
-# github.com/shurcooL/graphql => github.com/aanm/graphql v0.0.0-20210126135448-cdc0856bcf8b
+# github.com/shurcooL/githubv4 => github.com/aanm/githubv4 v0.0.0-20240213100002-d683ef4e8dad
+# github.com/shurcooL/graphql => github.com/aanm/graphql v0.0.0-20240213100714-ff80a8740826
