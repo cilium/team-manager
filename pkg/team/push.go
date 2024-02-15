@@ -379,6 +379,9 @@ func (tm *Manager) pushTeamMembership(ctx context.Context, force, dryRun bool, l
 		backExcludedMembers := localTeam.CodeReviewAssignment.ExcludedMembers
 		localTeam.CodeReviewAssignment.ExcludedMembers = nil
 
+		backIncludeChildTeamMembers := localTeam.CodeReviewAssignment.IncludeChildTeamMembers
+		localTeam.CodeReviewAssignment.IncludeChildTeamMembers = nil
+
 		upstreamTeam := upstreamCfg.AllTeams[localTeamName]
 		// An entire new team was added, so we will add the team members.
 		if upstreamTeam == nil {
@@ -416,6 +419,7 @@ func (tm *Manager) pushTeamMembership(ctx context.Context, force, dryRun bool, l
 			}
 		}
 		localTeam.CodeReviewAssignment.ExcludedMembers = backExcludedMembers
+		localTeam.CodeReviewAssignment.IncludeChildTeamMembers = backIncludeChildTeamMembers
 	}
 
 	if len(teamChanges) == 0 {

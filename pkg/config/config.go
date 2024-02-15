@@ -140,6 +140,11 @@ func (c *Config) Merge(other *Config) (*Config, error) {
 				}
 			}
 		}
+
+		// Keep the include child team members since we can't fetch this
+		// information from GitHub.
+		otherTeam.CodeReviewAssignment.IncludeChildTeamMembers =
+			team.CodeReviewAssignment.IncludeChildTeamMembers
 	}
 
 	// Keep the reason why collaborators have been added.
