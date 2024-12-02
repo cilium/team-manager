@@ -465,6 +465,9 @@ func CheckRepoSync(localCfg, upstreamCfg *config.Config) error {
 
 func (tm *Manager) CheckUserStatus(ctx context.Context, localCfg *config.Config) error {
 	busyMembers := map[string]struct{}{}
+
+	fmt.Printf("Found %d teams with %d unique members\n", len(localCfg.AllTeams), len(localCfg.Members))
+
 	for member := range localCfg.Members {
 		fmt.Printf("Checking status of %q\n", member)
 		status, err := tm.fetchMemberLimitedAvailability(ctx, member)
@@ -505,6 +508,8 @@ func (tm *Manager) CheckUserStatus(ctx context.Context, localCfg *config.Config)
 				continue
 			}
 		}
+
+		fmt.Printf("Team %q has the following active member ratio: %d/%d.\n", teamName, len(team.Members)-unavailableMembers, len(team.Members))
 
 		// Warn if there teams that have less than two people to review
 		if len(team.Members)-1 <= unavailableMembers {
