@@ -16,9 +16,11 @@ package team
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	gh "github.com/google/go-github/v59/github"
 	"github.com/schollz/progressbar/v3"
@@ -110,7 +112,7 @@ func (tm *Manager) fetchRepositories(ctx context.Context, c *config.Config) erro
 		if requeryOrgs {
 			resultRepos, err = tm.queryOrgRepos(ctx, variables)
 			if err != nil {
-				return fmt.Errorf("failed to requery teams: %w", err)
+				return fmt.Errorf("failed to requery org repositories: %w", err)
 			}
 			requeryOrgs = false
 		}
@@ -554,4 +556,28 @@ func (tm *Manager) fetchMemberLimitedAvailability(ctx context.Context, login str
 	}
 
 	return bool(resultMember.User.Status.IndicatesLimitedAvailability), nil
+}
+
+func (tm *Manager) gqlQuery(ctx context.Context, q interface{}, variables map[string]interface{}) error {
+	var (
+		rateLimitError      *gh.RateLimitError
+		abuseRateLimitError *gh.AbuseRateLimitError
+	)
+	for {
+		err := tm.gqlGHClient.Query(ctx, q, variables)
+		if err != nil {
+			switch {
+			case errors.As(err, &rateLimitError):
+				fmt.Printf("hit rate limit, sleeping for 30 seconds...\n")
+				time.Sleep(30 * time.Second)
+			case errors.As(err, &abuseRateLimitError) || strings.Contains(err.Error(), "You have exceeded a secondary rate limit"):
+				fmt.Printf("hit secondary limit, sleeping for 30 seconds...\n")
+				time.Sleep(30 * time.Second)
+			default:
+				return err
+			}
+			continue
+		}
+		return nil
+	}
 }

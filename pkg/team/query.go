@@ -33,7 +33,8 @@ func (tm *Manager) queryOrgRepos(ctx context.Context, additionalVariables map[st
 		variables[k] = v
 	}
 
-	err := tm.gqlGHClient.Query(ctx, &q, variables)
+	err := tm.gqlQuery(ctx, &q, variables)
+
 	if err != nil {
 		return queryResultRepositories{}, err
 	}
@@ -52,7 +53,7 @@ func (tm *Manager) queryOrgMembers(ctx context.Context, additionalVariables map[
 		variables[k] = v
 	}
 
-	err := tm.gqlGHClient.Query(ctx, &q, variables)
+	err := tm.gqlQuery(ctx, &q, variables)
 	if err != nil {
 		return queryResultMembers{}, err
 	}
@@ -72,7 +73,7 @@ func (tm *Manager) queryTeamsRepositories(ctx context.Context, additionalVariabl
 		variables[k] = v
 	}
 
-	err := tm.gqlGHClient.Query(ctx, &q, variables)
+	err := tm.gqlQuery(ctx, &q, variables)
 	if err != nil {
 		return queryTeamsRepositoriesResult{}, err
 	}
@@ -92,7 +93,7 @@ func (tm *Manager) queryTeamsMembers(ctx context.Context, additionalVariables ma
 		variables[k] = v
 	}
 
-	err := tm.gqlGHClient.Query(ctx, &q, variables)
+	err := tm.gqlQuery(ctx, &q, variables)
 	if err != nil {
 		return queryTeamsMembersResult{}, err
 	}
@@ -110,7 +111,7 @@ func (tm *Manager) queryOrgMemberLimitedAvailability(ctx context.Context, additi
 		variables[k] = v
 	}
 
-	err := tm.gqlGHClient.Query(ctx, &q, variables)
+	err := tm.gqlQuery(ctx, &q, variables)
 	if err != nil {
 		return queryResultMemberLimitedAvailability{}, err
 	}
