@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	gh "github.com/google/go-github/v59/github"
+	gh "github.com/google/go-github/v67/github"
 	"github.com/schollz/progressbar/v3"
 	"github.com/shurcooL/githubv4"
 	"github.com/shurcooL/graphql"
