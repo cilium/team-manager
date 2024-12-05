@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	gh "github.com/google/go-github/v59/github"
+	gh "github.com/google/go-github/v67/github"
 	"github.com/spf13/cobra"
 
 	"github.com/cilium/team-manager/pkg/config"
