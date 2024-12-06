@@ -30,6 +30,11 @@ func SanityCheck(cfg *Config) error {
 				return fmt.Errorf("member %q from team %q does not belong to organization", member, teamName)
 			}
 		}
+		for _, mentor := range team.Mentors {
+			if _, ok := cfg.Members[mentor]; !ok {
+				return fmt.Errorf("mentor %q from team %q does not belong to organization", mentor, teamName)
+			}
+		}
 		for _, xMember := range team.CodeReviewAssignment.ExcludedMembers {
 			if _, ok := cfg.Members[xMember.Login]; !ok {
 				return fmt.Errorf("member %q from code review assignment of team %q does not belong to organization", xMember.Login, teamName)

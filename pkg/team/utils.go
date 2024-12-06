@@ -26,8 +26,16 @@ import (
 
 // getExcludedUsers returns a list of all users that should be excluded for the
 // given team.
-func getExcludedUsers(teamName string, members map[string]config.User, excTeamMembers []config.ExcludedMember, excAllTeams []string) []githubv4.ID {
-	m := make(map[githubv4.ID]struct{}, len(excTeamMembers)+len(excAllTeams))
+func getExcludedUsers(teamName string, members map[string]config.User, mentors []string, excTeamMembers []config.ExcludedMember, excAllTeams []string) []githubv4.ID {
+	m := make(map[githubv4.ID]struct{}, len(members)+len(excTeamMembers)+len(excAllTeams))
+	for _, member := range mentors {
+		user, ok := members[member]
+		if !ok {
+			fmt.Printf("[ERROR] mentor %q from team %s, not found in the list of team members in the organization\n", member, teamName)
+			continue
+		}
+		m[user.ID] = struct{}{}
+	}
 	for _, member := range excTeamMembers {
 		user, ok := members[member.Login]
 		if !ok {

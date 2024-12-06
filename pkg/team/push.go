@@ -501,7 +501,7 @@ func (tm *Manager) pushCodeReviewAssignments(ctx context.Context, localCfg *conf
 	for _, teamName := range teamNames {
 		storedTeam := localCfg.AllTeams[teamName]
 		cra := storedTeam.CodeReviewAssignment
-		usersIDs := getExcludedUsers(teamName, localCfg.Members, cra.ExcludedMembers, localCfg.ExcludeCRAFromAllTeams)
+		usersIDs := getExcludedUsers(teamName, localCfg.Members, storedTeam.Mentors, cra.ExcludedMembers, localCfg.ExcludeCRAFromAllTeams)
 
 		input := github.UpdateTeamReviewAssignmentInput{
 			Algorithm:             cra.Algorithm,
@@ -624,6 +624,7 @@ func (tm *Manager) pushMembers(ctx context.Context, force, dryRun bool, localCfg
 
 			for _, team := range localCfg.AllTeams {
 				team.Members = slices.Remove(team.Members, member)
+				team.Mentors = slices.Remove(team.Mentors, member)
 				team.CodeReviewAssignment.ExcludedMembers = config.RemoveExcludedMember(team.CodeReviewAssignment.ExcludedMembers, member)
 			}
 

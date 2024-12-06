@@ -118,6 +118,24 @@ func (c *Config) Merge(other *Config) (*Config, error) {
 			slices.Remove(other.ExcludeCRAFromAllTeams, login)
 		}
 	}
+	// Keep mentors since we can't fetch this information
+	// from GitHub.
+	for otherTeamName, otherTeam := range other.AllTeams {
+		team, ok := c.AllTeams[otherTeamName]
+		if !ok {
+			continue
+		}
+		otherTeam.Mentors = nil
+		for _, mentor := range team.Mentors {
+			for _, member := range otherTeam.Members {
+				if member == mentor {
+					otherTeam.Mentors = append(
+						otherTeam.Mentors, mentor)
+					break
+				}
+			}
+		}
+	}
 
 	// Keep the code review assignment since we can't fetch this information
 	// from GitHub.
@@ -211,6 +229,10 @@ type TeamConfig struct {
 
 	// Members is a list of users that belong to this team.
 	Members []string `json:"members,omitempty" yaml:"members,omitempty"`
+
+	// Mentors is a list of users that belong to this team, but opt out of code review notifications
+	// Note 1: Mentors _must_ be in the member list. Lint will warn if they are not
+	Mentors []string `json:"mentors,omitempty" yaml:"mentors,omitempty"`
 
 	// CodeReviewAssignment is the code review assignment configuration of this team
 	CodeReviewAssignment CodeReviewAssignment `json:"codeReviewAssignment,omitempty" yaml:"codeReviewAssignment,omitempty"`
