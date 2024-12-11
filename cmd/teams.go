@@ -19,6 +19,7 @@ import (
 func init() {
 	rootCmd.AddCommand(addTeamsCmd)
 	rootCmd.AddCommand(setTeamsUsersCmd)
+	rootCmd.AddCommand(setTeamsMentorsCmd)
 }
 
 var addTeamsCmd = &cobra.Command{
@@ -31,7 +32,7 @@ var addTeamsCmd = &cobra.Command{
 			return fmt.Errorf("failed to create github client: %w", err)
 		}
 
-		cfg, err := persistence.LoadState(configFilename)
+		cfg, err := persistence.LoadState(configFilename, overrideFilename)
 		if err != nil {
 			return fmt.Errorf("failed to load local state: %w", err)
 		}
@@ -52,13 +53,34 @@ var setTeamsUsersCmd = &cobra.Command{
 	Short: "Set members of a team in local configuration",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := persistence.LoadState(configFilename)
+		cfg, err := persistence.LoadState(configFilename, overrideFilename)
 		if err != nil {
 			return fmt.Errorf("failed to load local state: %w", err)
 		}
 
 		if err = setTeamMembers(args[0], args[1:], cfg); err != nil {
 			return fmt.Errorf("failed to set team members: %w", err)
+		}
+
+		if err = persistence.StoreState(configFilename, cfg); err != nil {
+			return fmt.Errorf("failed to store state to config: %w", err)
+		}
+
+		return nil
+	},
+}
+var setTeamsMentorsCmd = &cobra.Command{
+	Use:   "set-team-mentors TEAM [USER ...]",
+	Short: "Set mentors of a team in local configuration",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := persistence.LoadState(configFilename, overrideFilename)
+		if err != nil {
+			return fmt.Errorf("failed to load local state: %w", err)
+		}
+
+		if err = setTeamMentors(args[0], args[1:], cfg); err != nil {
+			return fmt.Errorf("failed to set team mentors: %w", err)
 		}
 
 		if err = persistence.StoreState(configFilename, cfg); err != nil {
@@ -124,6 +146,21 @@ func setTeamMembers(team string, users []string, cfg *config.Config) error {
 		return fmt.Errorf("unknown team %q", team)
 	}
 	teamConfig.Members = stringset.New(members...).Elements()
+	cfg.AllTeams[team] = teamConfig
+
+	return nil
+}
+
+func setTeamMentors(team string, users []string, cfg *config.Config) error {
+	mentors, err := findUsers(cfg, users)
+	if err != nil {
+		return fmt.Errorf("unable to find users: %w", err)
+	}
+	teamConfig, ok := cfg.AllTeams[team]
+	if !ok {
+		return fmt.Errorf("unknown team %q", team)
+	}
+	teamConfig.Mentors = stringset.New(mentors...).Elements()
 	cfg.AllTeams[team] = teamConfig
 
 	return nil

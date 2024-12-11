@@ -23,8 +23,9 @@ import (
 )
 
 var (
-	orgName        string
-	configFilename string
+	orgName          string
+	configFilename   string
+	overrideFilename string
 )
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 
 	flag.StringVar(&orgName, "org", "cilium", "GitHub organization name")
 	flag.StringVar(&configFilename, "config-filename", "team-assignments.yaml", "Config filename")
+	flag.StringVar(&overrideFilename, "override-filename", "", "Team Override filename")
 }
 
 var rootCmd = &cobra.Command{

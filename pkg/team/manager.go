@@ -486,8 +486,12 @@ func (tm *Manager) CheckUserStatus(ctx context.Context, localCfg *config.Config)
 	}
 
 	for teamName, team := range localCfg.AllTeams {
-		excludedTeamMembers := map[string]struct{}{}
+		excludedTeamMentors := map[string]struct{}{}
+		for _, xMentor := range team.Mentors {
+			excludedTeamMentors[xMentor] = struct{}{}
+		}
 
+		excludedTeamMembers := map[string]struct{}{}
 		for _, xMember := range team.CodeReviewAssignment.ExcludedMembers {
 			excludedTeamMembers[xMember.Login] = struct{}{}
 		}
@@ -509,6 +513,11 @@ func (tm *Manager) CheckUserStatus(ctx context.Context, localCfg *config.Config)
 				unavailableMembers++
 				continue
 			}
+			_, isExcluded = excludedTeamMentors[member]
+			if isExcluded {
+				unavailableMembers++
+				continue
+			}
 		}
 
 		fmt.Printf("Team %q has the following active member ratio: %d/%d.\n", teamName, len(team.Members)-unavailableMembers, len(team.Members))
@@ -523,19 +532,37 @@ func (tm *Manager) CheckUserStatus(ctx context.Context, localCfg *config.Config)
 			}
 			fmt.Printf("Team %q with %d members doesn't have enough reviewers:\n", teamName, len(team.Members))
 			for _, member := range team.Members {
+				statusString := ""
 				_, isBusy := busyMembers[member]
 				if isBusy {
-					fmt.Printf(" - %s - busy\n", member)
-					continue
+					if len(statusString) > 0 {
+						statusString = statusString + ", "
+					}
+					statusString = statusString + "busy"
 				}
 				_, isExcluded := excludedMembers[member]
 				if isExcluded {
-					fmt.Printf(" - %s - excluded\n", member)
-					continue
+					if len(statusString) > 0 {
+						statusString = statusString + ", "
+					}
+					statusString = statusString + "org_excluded"
 				}
 				_, isExcluded = excludedTeamMembers[member]
 				if isExcluded {
-					fmt.Printf(" - %s - excluded\n", member)
+					if len(statusString) > 0 {
+						statusString = statusString + ", "
+					}
+					statusString = statusString + "team_excluded"
+				}
+				_, isExcluded = excludedTeamMentors[member]
+				if isExcluded {
+					if len(statusString) > 0 {
+						statusString = statusString + ", "
+					}
+					statusString = statusString + "team_mentor"
+				}
+				if len(statusString) > 0 {
+					fmt.Printf(" - %s - %s\n", member, statusString)
 					continue
 				}
 				fmt.Printf(" - %s - ok\n", member)

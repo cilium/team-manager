@@ -36,7 +36,7 @@ var addUsersCmd = &cobra.Command{
 			return fmt.Errorf("failed to create github client: %w", err)
 		}
 
-		cfg, err := persistence.LoadState(configFilename)
+		cfg, err := persistence.LoadState(configFilename, overrideFilename)
 		if err != nil {
 			return fmt.Errorf("failed to load local state: %w", err)
 		}

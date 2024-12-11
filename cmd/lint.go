@@ -22,7 +22,7 @@ var checkCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, _ []string) error {
 
-		localCfg, err := persistence.LoadState(configFilename)
+		localCfg, err := persistence.LoadState(configFilename, overrideFilename)
 		if err != nil {
 			return fmt.Errorf("failed to load local state: %w", err)
 		}
