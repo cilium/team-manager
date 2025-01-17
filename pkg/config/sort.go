@@ -40,6 +40,18 @@ func SortConfig(cfg *Config) {
 		}
 		sort.Strings(team.Members)
 
+		// Remove and sort and duplicated team mentors
+		teamMentors := make(map[string]struct{}, len(team.Mentors))
+		for _, teamMentor := range team.Mentors {
+			teamMentors[teamMentor] = struct{}{}
+		}
+
+		team.Mentors = make([]string, 0, len(teamMentors))
+		for teamMentor := range teamMentors {
+			team.Mentors = append(team.Mentors, teamMentor)
+		}
+		sort.Strings(team.Mentors)
+
 		// sort excluded members as well
 		sort.Slice(team.CodeReviewAssignment.ExcludedMembers, func(i, j int) bool {
 			return team.CodeReviewAssignment.ExcludedMembers[i].Login <

@@ -23,7 +23,7 @@ var addPTOCmd = &cobra.Command{
 	Short: "Exclude user from code review assignments",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := persistence.LoadState(configFilename)
+		cfg, err := persistence.LoadState(configFilename, overrideFilename)
 		if err != nil {
 			return fmt.Errorf("failed to load local state: %w", err)
 		}
@@ -44,7 +44,7 @@ var removePTOCmd = &cobra.Command{
 	Short: "Include user in code review assignments",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := persistence.LoadState(configFilename)
+		cfg, err := persistence.LoadState(configFilename, overrideFilename)
 		if err != nil {
 			return fmt.Errorf("failed to load local state: %w", err)
 		}

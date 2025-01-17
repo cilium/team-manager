@@ -39,7 +39,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("unable to initialize manager %w", err)
 		}
 
-		if _, err := persistence.LoadState(configFilename); err == nil {
+		if _, err := persistence.LoadState(configFilename, overrideFilename); err == nil {
 			fmt.Printf("Configuration file %q already exists\n", configFilename)
 			return nil
 		} else if !errors.Is(err, os.ErrNotExist) {

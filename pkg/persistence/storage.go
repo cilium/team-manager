@@ -38,7 +38,43 @@ func StoreState(file string, cfg *config.Config) error {
 	return renameio.WriteFile(file, data, 0o666)
 }
 
-func LoadState(file string) (*config.Config, error) {
+func LoadState(file, overrides string) (*config.Config, error) {
+	f, err := os.OpenFile(file, os.O_RDONLY, 0440)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	storedConfig := config.Config{}
+	err = yaml.NewDecoder(f).Decode(&storedConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(overrides) > 0 {
+		o, err := os.OpenFile(overrides, os.O_RDONLY, 0440)
+		if err != nil {
+			return nil, err
+		}
+		defer o.Close()
+		storedOverrides := config.OverrideConfig{}
+		err = yaml.NewDecoder(o).Decode(&storedOverrides)
+		if err != nil {
+			return nil, err
+		}
+		storedConfig.TeamOverrides = storedOverrides.Teams
+	}
+
+	// Index the teams into AllTeams for easy access.
+	storedConfig.IndexTeams()
+
+	// Set the parent names for all teams.
+	config.SetParentNames(storedConfig.AllTeams)
+
+	return &storedConfig, nil
+}
+
+func LoadOverrides(file string) (*config.Config, error) {
 	f, err := os.OpenFile(file, os.O_RDONLY, 0440)
 	if err != nil {
 		return nil, err
