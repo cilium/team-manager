@@ -110,6 +110,9 @@ teams:
         - aanm
         - borkmann
         - joestringer
+        # Optional list of team mentors who will not be auto-assigned PRs for review
+        mentors:
+        - aanm
         codeReviewAssignment:
           # algorithm, currently can be LOAD_BALANCE or ROUND_ROBIN.
           algorithm: LOAD_BALANCE
