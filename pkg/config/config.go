@@ -15,9 +15,12 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/shurcooL/githubv4"
@@ -118,6 +121,67 @@ func (c *Config) IndexTeams() {
 	applyTeamOverrides(c.TeamOverrides, allTeams)
 	c.AllTeams = allTeams
 
+}
+
+func normalizeTeam(team *TeamConfig) {
+	sort.Strings(team.Members)
+	team.Members = slices.Compact(team.Members)
+	team.Mentors = make([]string, 0)
+	team.CodeReviewAssignment.ExcludedMembers = nil
+	for _, child := range team.Children {
+		normalizeTeam(child)
+	}
+}
+
+type NormalizeOpts struct {
+	Repositories bool
+	Members      bool
+	Teams        bool
+}
+
+// Normalize removes all content from the config that is not reflected in the
+// upstream GitHub configuration.
+//
+// Members excluded from code review assignments are also removed due to lack
+// of support to fetch this configuration in API 2022-11-28.
+func (c *Config) Normalize(cfg NormalizeOpts) {
+	if !cfg.Repositories {
+		c.Repositories = nil
+	}
+	if cfg.Members {
+		for name, member := range c.Members {
+			member.Name = ""
+			member.SlackID = ""
+			c.Members[name] = member
+		}
+	} else {
+		c.Members = nil
+	}
+	if cfg.Teams {
+		for _, team := range c.Teams {
+			normalizeTeam(team)
+		}
+	} else {
+		c.Teams = nil
+	}
+
+	c.ExcludeCRAFromAllTeams = nil
+	c.TeamOverrides = nil
+	c.AllTeams = nil
+	c.IndexTeams()
+}
+
+func (c *Config) Equals(other *Config) bool {
+	local, err := json.Marshal(c)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not compare configurations: marshalling local config: %s", err)
+	}
+	remote, err := json.Marshal(other)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not compare configurations: marshalling remote config: %s", err)
+	}
+
+	return reflect.DeepEqual(local, remote)
 }
 
 func applyTeamOverrides(teams map[string]*OverrideTeamConfig, allTeams map[string]*TeamConfig) {
