@@ -358,6 +358,22 @@ func (tm *Manager) fetchTeams(ctx context.Context, c *config.Config) error {
 
 }
 
+func (tm *Manager) Diff(ctx context.Context, localCfg *config.Config, opts config.NormalizeOpts) (string, error) {
+	// Fetch the configuration from upstream
+	upstreamCfg, err := tm.PullConfiguration(ctx)
+	if err != nil {
+		return "", fmt.Errorf("unable to get upstream config: %w", err)
+	}
+	upstreamCfg.Normalize(opts)
+
+	if localCfg.Equals(upstreamCfg) {
+		return "", nil
+	}
+
+	cmp := comparator.CompareWithNames(localCfg, upstreamCfg, "local", "remote")
+	return cmp, nil
+}
+
 func (tm *Manager) PushConfiguration(ctx context.Context, localCfg *config.Config, force, dryRun, pushRepos, pushMembers, pushTeams bool) (*config.Config, error) {
 	// Fetch the configuration from upstream
 	upstreamCfg, err := tm.PullConfiguration(ctx)
