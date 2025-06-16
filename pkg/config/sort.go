@@ -21,6 +21,36 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
+func sortMembers(team *TeamConfig) {
+	// Remove and sort and duplicated team members
+	teamMembers := make(map[string]struct{}, len(team.Members))
+	for _, teamMember := range team.Members {
+		teamMembers[teamMember] = struct{}{}
+	}
+
+	team.Members = make([]string, 0, len(teamMembers))
+	for teamMember := range teamMembers {
+		team.Members = append(team.Members, teamMember)
+	}
+	sort.Strings(team.Members)
+
+	// Remove and sort and duplicated team mentors
+	teamMentors := make(map[string]struct{}, len(team.Mentors))
+	for _, teamMentor := range team.Mentors {
+		teamMentors[teamMentor] = struct{}{}
+	}
+
+	team.Mentors = make([]string, 0, len(teamMentors))
+	for teamMentor := range teamMentors {
+		team.Mentors = append(team.Mentors, teamMentor)
+	}
+	sort.Strings(team.Mentors)
+
+	for _, child := range team.Children {
+		sortMembers(child)
+	}
+}
+
 func SortConfig(cfg *Config) {
 	// Index all teams in a single map.
 	cfg.IndexTeams()
@@ -28,29 +58,7 @@ func SortConfig(cfg *Config) {
 	for teamName := range cfg.AllTeams {
 		team := cfg.AllTeams[teamName]
 
-		// Remove and sort and duplicated team members
-		teamMembers := make(map[string]struct{}, len(team.Members))
-		for _, teamMember := range team.Members {
-			teamMembers[teamMember] = struct{}{}
-		}
-
-		team.Members = make([]string, 0, len(teamMembers))
-		for teamMember := range teamMembers {
-			team.Members = append(team.Members, teamMember)
-		}
-		sort.Strings(team.Members)
-
-		// Remove and sort and duplicated team mentors
-		teamMentors := make(map[string]struct{}, len(team.Mentors))
-		for _, teamMentor := range team.Mentors {
-			teamMentors[teamMentor] = struct{}{}
-		}
-
-		team.Mentors = make([]string, 0, len(teamMentors))
-		for teamMentor := range teamMentors {
-			team.Mentors = append(team.Mentors, teamMentor)
-		}
-		sort.Strings(team.Mentors)
+		sortMembers(team)
 
 		// sort excluded members as well
 		sort.Slice(team.CodeReviewAssignment.ExcludedMembers, func(i, j int) bool {

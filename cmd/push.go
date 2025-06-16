@@ -45,6 +45,7 @@ var pushCmd = &cobra.Command{
 		if err = config.SanityCheck(cfg); err != nil {
 			return fmt.Errorf("failed to perform sanity check: %w", err)
 		}
+		config.SortConfig(cfg)
 
 		ghClient, err := github.NewClientFromEnv()
 		if err != nil {
