@@ -17,9 +17,9 @@ package config
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
-	"github.com/cilium/team-manager/pkg/slices"
 	"github.com/shurcooL/githubv4"
 )
 
@@ -146,9 +146,9 @@ func (c *Config) Merge(other *Config) (*Config, error) {
 	// Keep the code review assignment since we can't fetch this information
 	// from GitHub.
 	other.ExcludeCRAFromAllTeams = c.ExcludeCRAFromAllTeams
-	for _, login := range other.ExcludeCRAFromAllTeams {
+	for i, login := range other.ExcludeCRAFromAllTeams {
 		if _, ok := c.Members[login]; !ok {
-			slices.Remove(other.ExcludeCRAFromAllTeams, login)
+			slices.Delete(other.ExcludeCRAFromAllTeams, i, i+1)
 		}
 	}
 	// Keep mentors since we can't fetch this information
