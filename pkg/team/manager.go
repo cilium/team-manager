@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -42,18 +43,30 @@ type Manager struct {
 }
 
 func NewManager(ghClient *gh.Client, gqlGHClient *githubv4.Client, owner string) (*Manager, error) {
-	// Get the authenticated user's information
-	user, _, err := ghClient.Users.Get(context.Background(), "")
-	if err != nil {
-		return nil, fmt.Errorf("Error getting user: %v\n", err)
+	appSlug := os.Getenv("GITHUB_APP_SLUG")
+	if appSlug != "" {
+		// A valid GitHub App installation token is expected
+		return &Manager{
+			owner:             owner,
+			ghClient:          ghClient,
+			gqlGHClient:       gqlGHClient,
+			AuthenticatedUser: appSlug,
+		}, nil
 	}
 
-	return &Manager{
-		owner:             owner,
-		ghClient:          ghClient,
-		gqlGHClient:       gqlGHClient,
-		AuthenticatedUser: user.GetLogin(),
-	}, nil
+	// Fallback to authenticated user's information (works with PATs)
+	user, _, err := ghClient.Users.Get(context.Background(), "")
+	if err == nil {
+		// Successfully got user, this is a PAT
+		return &Manager{
+			owner:             owner,
+			ghClient:          ghClient,
+			gqlGHClient:       gqlGHClient,
+			AuthenticatedUser: user.GetLogin(),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("failed to authenticate with GHApp and user. User error: %v", err)
 }
 
 // PullConfiguration returns a *config.Config by querying the organization teams.
