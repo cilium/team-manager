@@ -6,7 +6,6 @@ require (
 	github.com/google/go-github/v67 v67.0.0
 	github.com/google/go-github/v79 v79.0.0
 	github.com/google/renameio v1.0.1
-	github.com/google/renameio/v2 v2.0.1
 	github.com/kr/pretty v0.3.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/schollz/progressbar/v3 v3.18.0
@@ -15,7 +14,6 @@ require (
 	github.com/spf13/cobra v1.10.1
 	golang.org/x/oauth2 v0.33.0
 	gopkg.in/yaml.v2 v2.4.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
