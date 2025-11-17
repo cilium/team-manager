@@ -101,5 +101,7 @@ google.golang.org/protobuf/types/descriptorpb
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
+# gopkg.in/yaml.v3 v3.0.1
+## explicit
 # github.com/shurcooL/githubv4 => github.com/aanm/githubv4 v0.0.0-20240213100002-d683ef4e8dad
 # github.com/shurcooL/graphql => github.com/aanm/graphql v0.0.0-20240213100714-ff80a8740826
