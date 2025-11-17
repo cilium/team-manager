@@ -5,7 +5,7 @@ WORKDIR /go/src/github.com/cilium/team-manager
 RUN make team-manager
 RUN strip team-manager
 
-FROM docker.io/library/alpine:3.19.1@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b as certs
+FROM docker.io/library/alpine:3.22.2@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412 as certs
 RUN apk --update add ca-certificates
 
 FROM scratch
