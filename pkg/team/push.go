@@ -26,7 +26,7 @@ import (
 	"github.com/cilium/team-manager/pkg/github"
 	"github.com/cilium/team-manager/pkg/slices"
 	"github.com/cilium/team-manager/pkg/terminal"
-	gh "github.com/google/go-github/v67/github"
+	gh "github.com/google/go-github/v79/github"
 	"github.com/shurcooL/githubv4"
 )
 
