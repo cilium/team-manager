@@ -8,7 +8,7 @@ require (
 	github.com/kr/pretty v0.3.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/schollz/progressbar/v3 v3.14.1
-	github.com/shurcooL/githubv4 v0.0.0-20240120211514-18a1ae0e79dc
+	github.com/shurcooL/githubv4 v0.0.0-20240727222349-48295856cce7
 	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/oauth2 v0.17.0
