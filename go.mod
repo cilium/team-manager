@@ -5,6 +5,7 @@ go 1.25.4
 require (
 	github.com/google/go-github/v67 v67.0.0
 	github.com/google/renameio v1.0.1
+	github.com/google/renameio/v2 v2.0.1
 	github.com/kr/pretty v0.3.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/schollz/progressbar/v3 v3.18.0
