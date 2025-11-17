@@ -24,7 +24,7 @@ jobs:
           echo "TAG: ${tag}"
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.tag.outputs.tag }}
           persist-credentials: false
