@@ -1,6 +1,6 @@
 module github.com/cilium/team-manager
 
-go 1.24.0
+go 1.25.4
 
 require (
 	github.com/google/go-github/v67 v67.0.0
@@ -10,7 +10,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.14.1
 	github.com/shurcooL/githubv4 v0.0.0-20240727222349-48295856cce7
 	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.10.1
 	golang.org/x/oauth2 v0.33.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -24,7 +24,7 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
