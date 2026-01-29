@@ -37,7 +37,7 @@ type repository struct {
 			EndCursor   githubv4.String
 			HasNextPage githubv4.Boolean
 		}
-	} `graphql:"collaborators(first: 50, after: $collaboratorsCursor, affiliation: $collaboratorAffiliation)"`
+	} `graphql:"collaborators(first: 25, after: $collaboratorsCursor, affiliation: $collaboratorAffiliation)"`
 }
 
 type RepositoryGraphQL struct {
@@ -84,7 +84,7 @@ func (r *RepositoryGraphQL) WithName(name githubv4.String) (repository, error) {
 //	}
 type queryResultRepositories struct {
 	Organization struct {
-		Repositories RepositoryGraphQL `graphql:"repositories(first: 50, after: $repositoriesWithRoleCursor)"`
+		Repositories RepositoryGraphQL `graphql:"repositories(first: 25, after: $repositoriesWithRoleCursor)"`
 	} `graphql:"organization(login: $repositoryOwner)"`
 }
 
@@ -121,7 +121,7 @@ type queryResultMembers struct {
 				EndCursor   githubv4.String
 				HasNextPage githubv4.Boolean
 			}
-		} `graphql:"membersWithRole(first: 50, after: $membersWithRoleCursor)"`
+		} `graphql:"membersWithRole(first: 25, after: $membersWithRoleCursor)"`
 	} `graphql:"organization(login: $repositoryOwner)"`
 }
 
@@ -145,7 +145,7 @@ type teamRepositories struct {
 			EndCursor   githubv4.String
 			HasNextPage githubv4.Boolean
 		}
-	} `graphql:"repositories(first: 100, after: $repositoriesCursor)"`
+	} `graphql:"repositories(first: 50, after: $repositoriesCursor)"`
 }
 
 type teamMembers struct {
@@ -168,7 +168,7 @@ type teamMembers struct {
 			EndCursor   githubv4.String
 			HasNextPage githubv4.Boolean
 		}
-	} `graphql:"members(first: 30, after: $membersCursor, membership: IMMEDIATE)"`
+	} `graphql:"members(first: 25, after: $membersCursor, membership: IMMEDIATE)"`
 }
 
 type teamRepositoriesGraphQL struct {
@@ -268,7 +268,7 @@ type teamMembersGraphQL struct {
 //	}
 type queryTeamsMembersResult struct {
 	Organization struct {
-		Teams teamMembersGraphQL `graphql:"teams(first: 50, after: $teamsCursor)"`
+		Teams teamMembersGraphQL `graphql:"teams(first: 25, after: $teamsCursor)"`
 	} `graphql:"organization(login: $repositoryOwner)"`
 }
 
