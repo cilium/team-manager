@@ -15,8 +15,13 @@ import (
 	"github.com/cilium/team-manager/pkg/persistence"
 )
 
+var verbose bool = false
+
 func init() {
 	rootCmd.AddCommand(statusCmd)
+
+	statusCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Print user statuses on all teams.")
+
 }
 
 var statusCmd = &cobra.Command{
@@ -49,7 +54,7 @@ var statusCmd = &cobra.Command{
 			return fmt.Errorf("unable to initialize manager %w", err)
 		}
 
-		err = tm.CheckUserStatus(context.Background(), localCfg)
+		err = tm.CheckUserStatus(context.Background(), localCfg, verbose)
 		if err != nil {
 			return err
 		}
