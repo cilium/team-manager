@@ -12,8 +12,17 @@ permissions:
 jobs:
   build:
     name: Build & Push
-    environment: release
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      # Required by the Quay OIDC token exchange.
+      id-token: write
+    # Pins the OIDC token subject to
+    # repo:cilium/team-manager:environment:release, which is the identity
+    # federated with the Quay robot account.
+    environment:
+      name: release
+      deployment: false
     steps:
       - name: Getting image tag
         id: tag
@@ -35,12 +44,42 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
+      # Quay's registry endpoint only accepts credentials or a JWT signed by
+      # Quay itself, so the GitHub OIDC token cannot be used as the registry
+      # password directly. Trade it for a short lived robot token first.
+      #
+      # Because the job references an environment, the subject of the token is
+      # repo:cilium@21054566/team-manager@333169811:environment:release, the
+      # immutable form that carries the owner and repository ids. That is the
+      # identity federated with the robot account on the Quay side, so renaming
+      # the environment breaks the login.
+      - name: Get a quay.io robot token via OIDC
+        id: registry-token
+        env:
+          ROBOT: ${{ vars.QUAY_ROBOT_RELEASE }}
+        run: |
+          oidc_token="$(curl -sSf --retry 3 --retry-all-errors \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=quay.io" \
+            | jq -er '.value')"
+          echo "::add-mask::${oidc_token}"
+
+          # Pass the credentials on stdin so that the OIDC token is not visible
+          # in the process list of the runner.
+          robot_token="$(printf 'user = "%s:%s"\n' "${ROBOT}" "${oidc_token}" \
+            | curl -sSf --retry 3 --retry-all-errors -K - \
+              "https://quay.io/oauth2/federation/robot/token" \
+            | jq -er '.token')"
+          echo "::add-mask::${robot_token}"
+
+          echo "token=${robot_token}" >> "$GITHUB_OUTPUT"
+
       - name: Login to quay.io
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: quay.io
-          username: ${{ secrets.QUAY_RELEASE_USERNAME }}
-          password: ${{ secrets.QUAY_RELEASE_TOKEN }}
+          username: ${{ vars.QUAY_ROBOT_RELEASE }}
+          password: ${{ steps.registry-token.outputs.token }}
 
       - name: Build & Push Docker Image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
