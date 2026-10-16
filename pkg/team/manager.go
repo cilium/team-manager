@@ -494,7 +494,7 @@ func CheckRepoSync(localCfg, upstreamCfg *config.Config) error {
 	return nil
 }
 
-func (tm *Manager) CheckUserStatus(ctx context.Context, localCfg *config.Config) error {
+func (tm *Manager) CheckUserStatus(ctx context.Context, localCfg *config.Config, verbose bool) error {
 	busyMembers := map[string]struct{}{}
 
 	fmt.Printf("Found %d teams with %d unique members\n", len(localCfg.AllTeams), len(localCfg.Members))
@@ -552,14 +552,15 @@ func (tm *Manager) CheckUserStatus(ctx context.Context, localCfg *config.Config)
 		fmt.Printf("Team %q has the following active member ratio: %d/%d.\n", teamName, len(team.Members)-unavailableMembers, len(team.Members))
 
 		// Warn if there teams that have less than two people to review
-		if len(team.Members)-1 <= unavailableMembers {
-			if len(team.Members) <= 1 && unavailableMembers == 0 {
+		if len(team.Members)-1 <= unavailableMembers || verbose {
+			oneActive := len(team.Members) <= 1 && unavailableMembers == 0 ||
+				len(team.Members) == 2 && unavailableMembers <= 1
+			if oneActive && !verbose {
 				continue
 			}
-			if len(team.Members) == 2 && unavailableMembers <= 1 {
-				continue
+			if len(team.Members)-1 <= unavailableMembers {
+				fmt.Printf("Team %q with %d members doesn't have enough reviewers:\n", teamName, len(team.Members))
 			}
-			fmt.Printf("Team %q with %d members doesn't have enough reviewers:\n", teamName, len(team.Members))
 			for _, member := range team.Members {
 				statusString := ""
 				_, isBusy := busyMembers[member]
